@@ -1,5 +1,8 @@
 [workspace]
 
 members = [
-    "shelf"
+    "shelf",
+    "server",
+    "config",
+    "database"
 ]
