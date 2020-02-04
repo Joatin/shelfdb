@@ -6,7 +6,7 @@ edition = "2018"
 repository = "https://github.com/Joatin/shelf"
 
 [dependencies]
-slog = "2.5.2"
+slog = { version = "2.5.2", features = ["max_level_trace"] }
 sloggers = "0.3.5"
 hyper = "0.13.1"
 juniper = "0.14.2"
@@ -22,3 +22,5 @@ uuid = {version = "0.7", features = ["serde", "v4"] }
 chrono = { version = "0.4.10", features = ["serde"] }
 graceful = "0.1.1"
 config = "0.10.1"
+colored = "1.9.2"
+human-panic = "1.0.1"

@@ -4,6 +4,7 @@ use crate::database::Database;
 use std::sync::Arc;
 use crate::server::admin::start_admin_server;
 use crate::server::client::start_client_server;
+use crate::settings::Settings;
 
 
 pub struct Server {
@@ -12,13 +13,13 @@ pub struct Server {
 }
 
 impl Server {
-    pub async fn start(logger: &Logger, db: Database) -> Result<Self, Error> {
+    pub async fn start(logger: &Logger, settings: &Settings, db: Database) -> Result<Self, Error> {
 
         info!(logger, "Setting up servers");
 
         let arc_db = Arc::new(db);
-        let admin_handle = start_admin_server(&logger, Arc::clone(&arc_db), 3001)?;
-        let client_handle = start_client_server(&logger, arc_db, 3000)?;
+        let admin_handle = start_admin_server(&logger, &settings, Arc::clone(&arc_db))?;
+        let client_handle = start_client_server(&logger, &settings, arc_db)?;
 
         Ok(Self {
             admin_handle: Box::new(admin_handle),

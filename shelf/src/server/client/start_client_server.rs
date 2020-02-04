@@ -18,9 +18,12 @@ use tokio::sync::oneshot::channel;
 use futures::FutureExt;
 use std::future::Future;
 use std::pin::Pin;
+use crate::settings::Settings;
+use colored::*;
 
-pub fn start_client_server(logger: &Logger, store: Arc<Database>, port: u16) -> Result<impl FnOnce(), Error> {
+pub fn start_client_server(logger: &Logger, settings: &Settings, store: Arc<Database>) -> Result<impl FnOnce(), Error> {
     let logger = logger.clone();
+    let settings = settings.clone();
     let stop_logger = logger.clone();
     let (tx, rx) = channel::<()>();
 
@@ -30,10 +33,10 @@ pub fn start_client_server(logger: &Logger, store: Arc<Database>, port: u16) -> 
         let mut runtime = Runtime::new().unwrap();
         debug!(logger, "Client server thread and thread pool created");
 
-        runtime.block_on(async move {
+        let res: Result<(), Error> = runtime.block_on(async move {
             info!(logger, "Starting client web server");
 
-            let addr = ([127, 0, 0, 1], port).into();
+            let addr = settings.client_host()?;
 
             let context = Arc::new(Context::new(&logger, store));
             let make_svc = make_service_fn(move |_conn| {
@@ -53,11 +56,13 @@ pub fn start_client_server(logger: &Logger, store: Arc<Database>, port: u16) -> 
                 rx.await.ok();
             });
 
-            info!(logger, "Client server listening on http://{}", addr);
+            info!(logger, "Client server listening on {}", format!("http://{}", addr).underline().bold().blue());
             if let Err(e) = server.await {
                 eprintln!("Client server error: {}", e);
             }
-        })
+
+            Ok(())
+        });
 
     });
 

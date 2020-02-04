@@ -4,6 +4,7 @@ use crate::database::cache::Cache;
 use crate::database::store::Store;
 use crate::collection::{Schema, Collection};
 use uuid::Uuid;
+use colored::*;
 
 
 pub struct Database {
@@ -34,14 +35,14 @@ impl Database {
 
         for schema in &schemas {
             let collections = store.get_collections(&schema).await?;
-            info!(logger, "Available schema \"{}\"", schema.name; "collection_count" => collections.len(), "created_at" => schema.created_at.to_string(), "description" => &schema.description, "id" => schema.id.to_string(), "name" => &schema.name);
+            info!(logger, "Available schema {}", format!("\"{}\"", schema.name).yellow(); "collection_count" => collections.len(), "created_at" => schema.created_at.to_string(), "description" => &schema.description, "id" => schema.id.to_string(), "name" => &schema.name);
 
             for collection in collections {
                 info!(logger, "Available collection \"{}\" in schema \"{}\"", collection.name, schema.name; "schema_id" => schema.id.to_string(), "schema_name" => &schema.name, "created_at" => collection.created_at.to_string(), "description" => &collection.description, "id" => collection.id.to_string(), "name" => &collection.name);
             }
         }
 
-        cache.store_schemas(&logger, schemas).await;
+        cache.store_schemas(&logger, schemas).await?;
 
         info!(logger, "Current cache size is: {}", pretty_bytes::converter::convert(cache.cache_size() as f64));
 
@@ -51,20 +52,20 @@ impl Database {
         })
     }
 
-    pub async fn schemas(&self, logger: &Logger) -> Result<Vec<Schema>, Error> {
-        info!(logger, "Fetching list of schemas");
+    // FETCH FUNCTIONS //
 
+    pub async fn schemas(&self, logger: &Logger) -> Result<Vec<Schema>, Error> {
+        trace!(logger, "Fetching list of schemas");
         Ok(self.cache.schemas(&logger).await?)
     }
 
     pub async fn schema(&self, logger: &Logger, id: &Uuid) -> Result<Schema, Error> {
-        info!(logger, "Fetching schema {}", id);
-
+        trace!(logger, "Fetching schema {}", id);
         Ok(self.cache.schema(&logger, &id).await?)
     }
 
     pub async fn set_schema(&self, logger: &Logger, schema: Schema) -> Result<(), Error> {
-        info!(logger, "Adding schema {} to cache", schema.id);
+        trace!(logger, "Adding schema {} to cache", schema.id);
         Ok(self.cache.set_schema(&logger, schema).await?)
     }
 }
