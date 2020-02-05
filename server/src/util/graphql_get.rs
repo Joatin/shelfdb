@@ -5,9 +5,9 @@ use juniper::http::GraphQLRequest;
 use juniper::{DefaultScalarValue, RootNode, GraphQLType};
 use crate::util::parse_graphql_response::parse_graphql_response;
 
-pub async fn graphql_get<Q: GraphQLType<Context=Arc<Ctxt>>, M: GraphQLType<Context=Arc<Ctxt>>, Ctxt>(
+pub async fn graphql_get<Q: GraphQLType<Context=Ctxt>, M: GraphQLType<Context=Ctxt>, Ctxt>(
     root_node: Arc<RootNode<'_, Q, M>>,
-    context: Arc<Ctxt>,
+    context: Ctxt,
 ) -> Result<Response<Body>, Infallible> {
 
     let query = "".to_owned();

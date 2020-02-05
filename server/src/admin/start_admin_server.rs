@@ -17,6 +17,7 @@ use crate::util::playground;
 use tokio::sync::oneshot::channel;
 use shelf_config::Config;
 use colored::*;
+use std::time::Instant;
 
 pub fn start_admin_server(logger: &Logger, config: &Config, store: Arc<Database>) -> Result<impl FnOnce(), Error> {
     let logger = logger.clone();
@@ -35,15 +36,15 @@ pub fn start_admin_server(logger: &Logger, config: &Config, store: Arc<Database>
 
             let addr = config.admin_host()?;
 
-            let context = Arc::new(Context::new(&logger, store));
+            let context = Context::new(&logger, (*store).clone());
             let make_svc = make_service_fn(move |_conn| {
 
                 let root_node = Arc::new(Schema::new(Query::new(), Mutation::new()));
-                let new_context = Arc::clone(&context);
+                let new_context = context.clone();
                 async move {
                     // service_fn converts our function into a `Service`
                     Ok::<_, Infallible>(service_fn(move |r| {
-                        handle_routes(Arc::clone(&root_node), Arc::clone(&new_context), r)
+                        handle_routes(Arc::clone(&root_node), new_context.new_request(), r)
                     }))
                 }
             });
@@ -79,13 +80,21 @@ pub fn start_admin_server(logger: &Logger, config: &Config, store: Arc<Database>
 
 async fn handle_routes(
     root_node: Arc<Schema>,
-    context: Arc<Context>,
+    context: Context,
     req: Request<Body>
 ) -> Result<Response<Body>, Infallible> {
-    match (req.method(), req.uri().path()) {
+    let start_time = Instant::now();
+
+    info!(context.logger, "Received request {}", format!("{} {}", req.method(), req.uri().path()).yellow());
+
+    let res = match (req.method(), req.uri().path()) {
         (&Method::GET, "/") =>  playground("/graphql"),
-        (&Method::GET, "/graphql") =>  graphql_get(Arc::clone(&root_node), context).await,
-        (&Method::POST, "/graphql") =>  graphql_post(Arc::clone(&root_node), context, req).await,
+        (&Method::GET, "/graphql") =>  graphql_get(Arc::clone(&root_node), context.clone()).await,
+        (&Method::POST, "/graphql") =>  graphql_post(Arc::clone(&root_node), context.clone(), req).await,
         _ => Ok(Response::new("Hello, World".into()))
-    }
+    };
+
+    info!(context.logger, "Handled request in {}", format!("{:?}ms", Instant::now().duration_since(start_time).as_secs_f64() * 1000.0).yellow());
+
+    res
 }

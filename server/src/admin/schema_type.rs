@@ -14,12 +14,12 @@ pub struct SchemaType {
     created_at: DateTime<Utc>
 }
 
-impl From<Schema> for SchemaType {
-    fn from(value: Schema) -> Self {
+impl From<&Schema> for SchemaType {
+    fn from(value: &Schema) -> Self {
         Self {
             id: value.id,
-            name: value.name,
-            description: value.description,
+            name: value.name.to_owned(),
+            description: value.description.to_owned(),
             created_at: value.created_at,
         }
     }

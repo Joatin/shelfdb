@@ -1,6 +1,5 @@
 use crate::admin::context::Context;
 use juniper::{FieldResult, FieldError};
-use std::sync::Arc;
 use crate::util::make_sync;
 use shelf_database::Schema;
 use crate::admin::schema_input::SchemaInput;
@@ -14,26 +13,25 @@ impl Mutation {
     }
 }
 
-#[juniper::object(Context = Arc<Context>)]
+#[juniper::object(Context = Context)]
 impl Mutation {
 
-    fn set_schema(context: &Arc<Context>, input: SchemaInput) -> FieldResult<SchemaType> {
-        let context = Arc::clone(&context);
+    fn set_schema(context: &Context, input: SchemaInput) -> FieldResult<SchemaType> {
+        let context = context.clone();
 
         let res = make_sync(async move {
-            let logger = context.get_logger();
-            context.db.set_schema(&logger, Schema::new(
+            context.db.set_schema(&context.logger, Schema::new(
                 input.id,
                 input.name,
                 input.description
             )).await?;
 
-            context.db.schema(&logger, &input.id).await
+            context.db.schema(&context.logger, &input.id).await
         });
 
         match res {
             Ok(r) => {
-                Ok(SchemaType::from(r))
+                Ok(SchemaType::from(&r))
             },
             Err(err) => {
                 let msg = format!("{}", err);
@@ -45,11 +43,11 @@ impl Mutation {
         }
     }
 
-    fn set_collection(context: &Arc<Context>, name: String, schema_name: String) -> FieldResult<bool> {
+    fn set_collection(context: &Context, name: String, schema_name: String) -> FieldResult<bool> {
         Ok(true)
     }
 
-    fn set_document(context: &Arc<Context>, name: String, collection_name: String, schema_name: String) -> FieldResult<bool> {
+    fn set_document(context: &Context, name: String, collection_name: String, schema_name: String) -> FieldResult<bool> {
         Ok(true)
     }
 }

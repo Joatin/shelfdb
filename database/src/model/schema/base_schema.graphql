@@ -1,0 +1,5 @@
+scalar Uuid
+
+type Test {
+    id: Uuid
+}

@@ -4,5 +4,7 @@ members = [
     "shelf",
     "server",
     "config",
-    "database"
+    "database",
+    "file_store",
+    "memory_cache"
 ]

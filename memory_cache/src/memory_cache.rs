@@ -1,12 +1,12 @@
 use failure::Error;
-use crate::Cache;
-use slog::Logger;
+use shelf_database::{Cache, Store};
+use slog::{Logger, SendSyncRefUnwindSafeDrain};
 use pretty_bytes::converter::convert;
 use failure::_core::pin::Pin;
-use crate::Schema;
+use shelf_database::Schema;
 use failure::_core::future::Future;
 use futures::FutureExt;
-use std::sync::{RwLock, Arc};
+use std::sync::{RwLock, Arc, RwLockReadGuard};
 use std::mem;
 use uuid::Uuid;
 
@@ -20,7 +20,6 @@ impl MemoryCache {
 
         let info = sys_info::mem_info().unwrap();
 
-
         info!(logger, "Current free ram is: {}", convert((info.avail * 1000) as f64));
 
         Ok(Self {
@@ -30,32 +29,46 @@ impl MemoryCache {
 }
 
 impl Cache for MemoryCache {
-    fn store_schemas(&self, logger: &Logger, schemas: Vec<Schema>) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send>> {
-
-        let cache_schemas = Arc::clone(&self.schemas);
+    fn load(&self, logger: &Logger, store: &Arc<dyn Store>) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send>> {
         let logger = logger.clone();
-
+        let store = Arc::clone(&store);
+        let schemas_store = Arc::clone(&self.schemas);
         async move {
-            let mut lock = cache_schemas.write().unwrap();
-            *lock = schemas;
-
-            info!(logger, "Saved schemas into memory cache");
-
+            info!(logger, "Fetching schemas from store");
+            let schemas = store.get_schemas().await?;
+            {
+                for schema in &schemas {
+                    let logger = logger.new(o!("schema" => schema.name.to_string()));
+                    schema.validate_definition(&logger)?;
+                }
+                let mut lock = schemas_store.write().unwrap();
+                *lock = schemas;
+            }
+            info!(logger, "All schemas fetched and added to cache! 😎");
             Ok(())
         }.boxed()
     }
 
-    fn schemas(&self, logger: &Logger) -> Pin<Box<dyn Future<Output=Result<Vec<Schema>, Error>> + Send>> {
-        let cache_schemas = Arc::clone(&self.schemas);
+    fn save(&self, logger: &Logger, store: &Arc<dyn Store>) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send>> {
         let logger = logger.clone();
-        async move {
-            let lock = cache_schemas.read().unwrap();
-            let data = lock.clone();
+        let schemas = Arc::clone(&self.schemas);
+        let store = Arc::clone(&store);
 
-            info!(logger, "Fetched {} schemas from cache", data.len());
-
-            Ok(data)
+        async move  {
+            let data = {
+                let lock = schemas.read().unwrap();
+                lock.clone()
+            };
+            for schema in data.iter() {
+                store.save_schema(schema).await?;
+            }
+            Ok(())
         }.boxed()
+    }
+
+    fn schemas(&self) -> RwLockReadGuard<Vec<Schema>> {
+        let lock = self.schemas.read().unwrap();
+        lock
     }
 
     fn schema(&self, logger: &Logger, id: &Uuid) -> Pin<Box<dyn Future<Output=Result<Schema, Error>> + Send>> {
@@ -76,18 +89,19 @@ impl Cache for MemoryCache {
         }.boxed()
     }
 
-    fn set_schema(&self, logger: &Logger, schema: Schema) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send>> {
+    fn add_schema(&self, logger: &Logger, schema: Schema) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send>> {
         let cache_schemas = Arc::clone(&self.schemas);
         let logger = logger.clone();
         async move {
             let mut lock = cache_schemas.write().unwrap();
             let id = schema.id.to_owned();
+            let name = schema.name.to_owned();
 
-            // TODO: Validate constraints before insert
+            schema.validate_definition(&logger)?;
 
             lock.push(schema);
 
-            info!(logger, "Inserted schema {} into cache", id);
+            info!(logger, "Inserted schema {} into cache", name; "schema_id" => id.to_string());
 
             Ok(())
         }.boxed()
@@ -103,5 +117,10 @@ impl Cache for MemoryCache {
         size += mem::size_of_val(&self);
 
         size
+    }
+
+    fn is_empty(&self) -> bool {
+        let lock = self.schemas.read().unwrap();
+        return lock.is_empty()
     }
 }

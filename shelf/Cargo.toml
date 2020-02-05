@@ -28,3 +28,5 @@ graphql-parser = "0.2.3"
 shelf_config = { path = "../config" }
 shelf_database = { path = "../database" }
 shelf_server = { path = "../server" }
+shelf_memory_cache= { path = "../memory_cache" }
+shelf_file_store = { path = "../file_store" }

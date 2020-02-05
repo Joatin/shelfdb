@@ -7,12 +7,6 @@ use hyper::header::HeaderValue;
 /// # Arguments
 ///
 /// * `graphql_endpoint` - The absolute path the graphql endpoint is located at
-///
-/// # Example
-///
-/// ```
-/// playground("/graphql")
-/// ```
 pub fn playground(graphql_endpoint: &str) -> Result<Response<Body>, Infallible> {
     let mut resp = Response::new(Body::empty());
     *resp.status_mut() = StatusCode::OK;

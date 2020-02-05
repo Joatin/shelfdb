@@ -8,9 +8,9 @@ use crate::util::parse_graphql_response::parse_graphql_response;
 use hyper::header::HeaderValue;
 use hyper::body::to_bytes;
 
-pub async fn graphql_post<Q: GraphQLType<Context=Arc<Ctxt>>, M: GraphQLType<Context=Arc<Ctxt>>, Ctxt>(
+pub async fn graphql_post<Q: GraphQLType<Context=Ctxt>, M: GraphQLType<Context=Ctxt>, Ctxt>(
     root_node: Arc<RootNode<'_, Q, M>>,
-    context: Arc<Ctxt>,
+    context: Ctxt,
     req: Request<Body>
 ) -> Result<Response<Body>, Infallible> {
     match to_bytes(req.into_body()).await {
