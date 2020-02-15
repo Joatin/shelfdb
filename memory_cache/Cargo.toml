@@ -13,6 +13,7 @@ sys-info = "0.5.8"
 pretty-bytes = "0.2.2"
 colored = "1.9.2"
 uuid = {version = "0.7", features = ["serde", "v4"] }
+tokio = {version = "0.2.9", features = ["full"]}
 
 shelf_config = { path = "../config" }
 shelf_database = { path = "../database" }

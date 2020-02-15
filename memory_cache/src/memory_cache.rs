@@ -1,17 +1,23 @@
 use failure::Error;
-use shelf_database::{Cache, Store};
-use slog::{Logger, SendSyncRefUnwindSafeDrain};
+use shelf_database::{Cache, Store, CacheSchema};
+use slog::Logger;
 use pretty_bytes::converter::convert;
 use failure::_core::pin::Pin;
 use shelf_database::Schema;
 use failure::_core::future::Future;
 use futures::FutureExt;
-use std::sync::{RwLock, Arc, RwLockReadGuard};
+use std::sync::RwLock;
 use std::mem;
 use uuid::Uuid;
+use tokio::sync::broadcast::{channel, Sender, Receiver};
+use crate::memory_cache_schema::MemoryCacheSchema;
+use futures::future::join_all;
+use crate::memory_cache_collection::MemoryCacheCollection;
+
 
 pub struct MemoryCache {
-    schemas: Arc<RwLock<Vec<Schema>>>
+    schemas: Vec<RwLock<MemoryCacheSchema>>,
+    on_schema_updates_sender: Sender<()>
 }
 
 impl MemoryCache {
@@ -19,108 +25,124 @@ impl MemoryCache {
         info!(logger, "Starting memory cache");
 
         let info = sys_info::mem_info().unwrap();
-
         info!(logger, "Current free ram is: {}", convert((info.avail * 1000) as f64));
 
+
+        let (sender, _) = channel(1);
+
         Ok(Self {
-            schemas: Arc::new(RwLock::new(Vec::new()))
+            schemas: Vec::new(),
+            on_schema_updates_sender: sender
         })
     }
 }
 
-impl Cache for MemoryCache {
-    fn load(&self, logger: &Logger, store: &Arc<dyn Store>) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send>> {
-        let logger = logger.clone();
-        let store = Arc::clone(&store);
-        let schemas_store = Arc::clone(&self.schemas);
+impl Cache for MemoryCache
+    where MemoryCache: Send
+{
+    type CacheSchema = MemoryCacheSchema;
+
+    fn load<'a, S: Store>(&'a mut self, logger: &'a Logger, store: &'a S) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>> {
+
         async move {
             info!(logger, "Fetching schemas from store");
-            let schemas = store.get_schemas().await?;
-            {
-                for schema in &schemas {
-                    let logger = logger.new(o!("schema" => schema.name.to_string()));
-                    schema.validate_definition(&logger)?;
+            let schemas = store.get_schemas(&logger).await?;
+            info!(logger, "Info found {} schemas", schemas.len());
+
+            for schema in schemas {
+                info!(logger, "Fetching collection for schema {}", schema.name);
+                let collections = store.get_collections(&logger, &schema).await?;
+                info!(logger, "Info found {} collections for schema {}", collections.len(), schema.name);
+
+
+                let mut mapped_collections = vec![];
+                for collection in collections {
+                    let documents = store.get_documents(&logger, &schema, &collection).await?;
+                    mapped_collections.push(RwLock::new(MemoryCacheCollection::new(collection, documents)))
                 }
-                let mut lock = schemas_store.write().unwrap();
-                *lock = schemas;
+
+                self.schemas.push(RwLock::new(MemoryCacheSchema::new(schema, mapped_collections)));
             }
+
+
+
+//            {
+//                let mapped_schemas: Vec<_> = schemas.into_iter().map(|i| RwLock::new(MemoryCacheSchema::new(i))).collect();
+//                for schema_lock in &mapped_schemas {
+//                    let lock = schema_lock.read().unwrap();
+//                    let logger = logger.new(o!("schema" => lock.name.to_string()));
+//                    lock.validate(&logger)?;
+//                }
+//                self.schemas = mapped_schemas;
+//            }
             info!(logger, "All schemas fetched and added to cache! 😎");
             Ok(())
         }.boxed()
     }
 
-    fn save(&self, logger: &Logger, store: &Arc<dyn Store>) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send>> {
-        let logger = logger.clone();
-        let schemas = Arc::clone(&self.schemas);
-        let store = Arc::clone(&store);
-
-        async move  {
-            let data = {
-                let lock = schemas.read().unwrap();
-                lock.clone()
-            };
-            for schema in data.iter() {
-                store.save_schema(schema).await?;
-            }
-            Ok(())
-        }.boxed()
-    }
-
-    fn schemas(&self) -> RwLockReadGuard<Vec<Schema>> {
-        let lock = self.schemas.read().unwrap();
-        lock
-    }
-
-    fn schema(&self, logger: &Logger, id: &Uuid) -> Pin<Box<dyn Future<Output=Result<Schema, Error>> + Send>> {
-        let cache_schemas = Arc::clone(&self.schemas);
-        let logger = logger.clone();
-        let id = id.clone();
+    fn save<'a, S: Store>(&'a self, logger: &'a Logger, store: &'a S) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>> {
         async move {
-            let lock = cache_schemas.read().unwrap();
-            match lock.iter().find(|i| i.id == id) {
-                Some(v) => {
-                    info!(logger, "Fetched schema {} from cache, id was {}", v.name, v.id);
-                    Ok(v.clone())
-                },
-                None => {
-                    bail!("Schema not found");
+            for schema_lock in self.schemas.iter() {
+                let (schema, collection) = {
+                    let lock = schema_lock.read().unwrap();
+                    lock.get_data_cloned()
+                };
+
+                store.save_schema(&logger, &schema).await?;
+
+                for (collection, documents) in collection {
+                    store.save_collection(&logger, &schema, &collection).await?;
+
+                    let futs: Vec<_> = documents.into_iter().map(|doc| {
+                        store.save_document(&logger, &schema, &collection, doc)
+                    }).collect();
+
+                    join_all(futs).await.into_iter().collect::<Result<_, _>>()?;
                 }
+
             }
+
+            store.flush(&logger).await?;
+            Ok(())
         }.boxed()
     }
 
-    fn add_schema(&self, logger: &Logger, schema: Schema) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send>> {
-        let cache_schemas = Arc::clone(&self.schemas);
-        let logger = logger.clone();
-        async move {
-            let mut lock = cache_schemas.write().unwrap();
-            let id = schema.id.to_owned();
-            let name = schema.name.to_owned();
+    fn schemas(&self) -> &Vec<RwLock<Self::CacheSchema>> {
+        &self.schemas
+    }
 
-            schema.validate_definition(&logger)?;
+    fn schema(&self, _logger: &Logger, id: Uuid) -> Option<&RwLock<Self::CacheSchema>> {
+        self.schemas.iter().find(|i| {
+            let lock = i.read().unwrap();
+            lock.id.eq(&id)
+        })
+    }
 
-            lock.push(schema);
+    fn schema_by_name(&self, _logger: &Logger, name: &str) -> Option<&RwLock<Self::CacheSchema>> {
+        self.schemas.iter().find(|i| {
+            let lock = i.read().unwrap();
+            lock.name.eq(name)
+        })
+    }
 
-            info!(logger, "Inserted schema {} into cache", name; "schema_id" => id.to_string());
-
-            Ok(())
-        }.boxed()
+    fn set_schema(&mut self, logger: &Logger, schema: Schema, new_graphql_schema: &str) -> Result<(), Error> {
+        let mut mem_schema = MemoryCacheSchema::new(schema, vec![]);
+        mem_schema.migrate(&logger, new_graphql_schema)?;
+        self.schemas.push(RwLock::new(mem_schema));
+        Ok(())
     }
 
     fn cache_size(&self) -> usize {
-        let lock = self.schemas.read().unwrap();
-
         let mut size = 0;
-
-        size += lock.len() * mem::size_of::<Schema>();
-
         size += mem::size_of_val(&self);
-
         size
     }
 
     fn is_empty(&self) -> bool {
-        let lock = self.schemas.read().unwrap();
-        return lock.is_empty()
+        self.schemas.is_empty()
+    }
+
+    fn on_schema_updates(&self) -> Receiver<()> {
+        self.on_schema_updates_sender.subscribe()
     }
 }

@@ -1,19 +1,28 @@
-use crate::admin::context::Context;
-use juniper::{FieldResult, FieldError};
-use crate::util::make_sync;
+use crate::context::Context;
+use juniper::FieldResult;
 use crate::admin::schema_type::SchemaType;
+use std::marker::PhantomData;
+use shelf_database::{Cache, Store};
+use shelf_database::CacheSchema;
 
 
-pub struct Query;
+pub struct Query<C: Cache, S: Store> {
+    phantom_cache: PhantomData<C>,
+    phantom_store: PhantomData<S>
+}
 
-impl Query {
+impl<C: Cache, S: Store> Query<C, S> {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            phantom_cache: PhantomData,
+            phantom_store: PhantomData
+        }
+
     }
 }
 
-#[juniper::object(Context = Context)]
-impl Query {
+#[juniper::object(Context = Context<C, S>)]
+impl<C: Cache, S: Store> Query<C, S> {
     #[graphql(
     description = "Returns the current version of this API",
     )]
@@ -24,9 +33,11 @@ impl Query {
     #[graphql(
     description = "Returns all schemas stored in the database",
     )]
-    fn schemas(context: &Context) -> FieldResult<Vec<SchemaType>> {
-        let context = context.clone();
-        let schemas = context.db.schemas();
-        Ok(schemas.iter().map(|i| SchemaType::from(i)).collect())
+    fn schemas(context: &Context<C, S>) -> FieldResult<Vec<SchemaType>> {
+        let db = context.db.read().unwrap();
+        Ok(db.schemas().iter().map(|i| {
+            let lock = i.read().unwrap();
+            SchemaType::from(lock.inner_schema())
+        }).collect())
     }
 }

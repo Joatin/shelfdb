@@ -20,7 +20,7 @@ pub fn validate_graphql_schema_correctness(logger: &Logger, document: &Document)
                 match def {
                     TypeDefinition::Scalar(_) => {},
                     TypeDefinition::Object(o) => {
-                        if RESERVED_TYPE_NAMES.iter().find(|i| i.to_lowercase() == o.name.to_lowercase()).is_some() {
+                        if RESERVED_TYPE_NAMES.iter().any(|i| i.to_lowercase() == o.name.to_lowercase()) {
                             crit!(logger, "The type name \"{}\" is reserved", o.name; "position" => format!("{}", o.position));
                             bail!("The type name \"{}\" is reserved", o.name);
                         }
@@ -32,7 +32,7 @@ pub fn validate_graphql_schema_correctness(logger: &Logger, document: &Document)
                         if has_collection_directive(&o.directives) {
                             // This is a collection, let's make sure it has an Id
                             if !has_id(&o.fields) {
-                                crit!(logger, "The collection \"{}\" does not have a valid id, the collection must have a fields that equal \"{}\"", o.name, "id: Uuid!".magenta());
+                                crit!(logger, "The collection \"{}\" does not have a valid id, the collection must have a field that equal \"{}\"", o.name, "id: Uuid!".magenta());
                                 bail!("The collection \"{}\" does not have a valid id", o.name);
                             }
 
@@ -50,11 +50,11 @@ pub fn validate_graphql_schema_correctness(logger: &Logger, document: &Document)
                     },
                 }
             },
-            Definition::TypeExtension(def) => {
-
+            Definition::TypeExtension(_def) => {
+                // TODO
             },
-            Definition::DirectiveDefinition(def) => {
-
+            Definition::DirectiveDefinition(_def) => {
+                // TODO
             },
         }
     }
@@ -63,22 +63,22 @@ pub fn validate_graphql_schema_correctness(logger: &Logger, document: &Document)
     Ok(())
 }
 
-fn has_collection_directive(directives: &Vec<Directive>) -> bool {
-    directives.iter().find(|i| i.name == COLLECTION_DIRECTIVE_NAME.to_string()).is_some()
+pub fn has_collection_directive(directives: &[Directive]) -> bool {
+    directives.iter().any(|i| i.name == COLLECTION_DIRECTIVE_NAME)
 }
 
 fn is_unknown_directives(directive: &Directive) -> bool {
     !KNOWN_DIRECTIVES.contains(&&*directive.name)
 }
 
-fn has_id(fields: &Vec<Field>) -> bool {
-    fields.iter().find(|i| i.name == "id".to_string() && i.field_type == Type::NonNullType(Box::new(Type::NamedType("Uuid".to_string())))).is_some()
+fn has_id(fields: &[Field]) -> bool {
+    fields.iter().any(|i| i.name == "id" && i.field_type == Type::NonNullType(Box::new(Type::NamedType("Uuid".to_string()))))
 }
 
 #[cfg(test)]
 mod test {
     use graphql_parser::parse_schema;
-    use crate::model::schema::validate_graphql_schema_correctness::{validate_graphql_schema_correctness, RESERVED_TYPE_NAMES};
+    use crate::util::{validate_graphql_schema_correctness, RESERVED_TYPE_NAMES};
     use sloggers::null::NullLoggerBuilder;
     use sloggers::Build;
 

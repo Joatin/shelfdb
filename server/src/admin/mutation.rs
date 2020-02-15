@@ -1,53 +1,48 @@
-use crate::admin::context::Context;
-use juniper::{FieldResult, FieldError};
-use crate::util::make_sync;
-use shelf_database::Schema;
+use crate::context::Context;
+use juniper::FieldResult;
+use shelf_database::{Schema, Cache, Store};
 use crate::admin::schema_input::SchemaInput;
 use crate::admin::schema_type::SchemaType;
+use std::marker::PhantomData;
 
-pub struct Mutation;
+pub struct Mutation<C: Cache, S: Store> {
+    phantom_cache: PhantomData<C>,
+    phantom_store: PhantomData<S>
+}
 
-impl Mutation {
+impl<C: Cache, S: Store> Mutation<C, S> {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            phantom_cache: PhantomData,
+            phantom_store: PhantomData
+        }
     }
 }
 
-#[juniper::object(Context = Context)]
-impl Mutation {
+#[juniper::object(Context = Context<C, S>)]
+impl<C: Cache, S: Store> Mutation<C, S> {
 
-    fn set_schema(context: &Context, input: SchemaInput) -> FieldResult<SchemaType> {
+    fn set_schema(context: &Context<C, S>, input: SchemaInput) -> FieldResult<SchemaType> {
         let context = context.clone();
+        let mut db = context.db.write().unwrap();
+        let schema = Schema::new(
+            input.id,
+            &input.name,
+            input.description
+        );
 
-        let res = make_sync(async move {
-            context.db.set_schema(&context.logger, Schema::new(
-                input.id,
-                input.name,
-                input.description
-            )).await?;
+        let res = SchemaType::from(&schema);
 
-            context.db.schema(&context.logger, &input.id).await
-        });
+        db.cache_mut().set_schema(&context.logger, schema, "")?;
 
-        match res {
-            Ok(r) => {
-                Ok(SchemaType::from(&r))
-            },
-            Err(err) => {
-                let msg = format!("{}", err);
-                Err(FieldError::new(
-                    "Failed to fetch schemas",
-                    graphql_value!({ "internal_error": msg })
-                ))
-            }
-        }
+        Ok(res)
     }
 
-    fn set_collection(context: &Context, name: String, schema_name: String) -> FieldResult<bool> {
+    fn set_collection(context: &Context<C, S>, name: String, schema_name: String) -> FieldResult<bool> {
         Ok(true)
     }
 
-    fn set_document(context: &Context, name: String, collection_name: String, schema_name: String) -> FieldResult<bool> {
+    fn set_document(context: &Context<C, S>, name: String, collection_name: String, schema_name: String) -> FieldResult<bool> {
         Ok(true)
     }
 }

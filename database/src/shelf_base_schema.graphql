@@ -1,0 +1,24 @@
+directive @collection on OBJECT
+
+scalar Uuid
+
+"""
+This is a example collection
+"""
+type Car @collection {
+    """
+    All collections must have a valid id!
+    """
+    id: Uuid!
+
+    """
+    The brand of the car
+    """
+    brand: String!
+
+
+    """
+    The model make
+    """
+    model: String!
+}

@@ -19,6 +19,8 @@ serde_derive = "1.0.104"
 uuid = {version = "0.7", features = ["serde", "v4"] }
 chrono = { version = "0.4.10", features = ["serde"] }
 colored = "1.9.2"
+Inflector = "0.11.4"
+graphql-parser = "0.2.3"
 
 shelf_config = { path = "../config" }
 shelf_database = { path = "../database" }

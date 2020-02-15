@@ -24,7 +24,7 @@ impl Config {
         Config::set_defaults(&mut config)?;
 
         info!(logger, "Loading configurations");
-        if let Err(_) = config.merge(config::File::with_name("shelf")) {
+        if config.merge(config::File::with_name("shelf")).is_err() {
             warn!(logger, "No config file found, you can add a shelf.yml, shelf.json or shelf.toml file. Using defaults for now...")
         }
 
