@@ -103,7 +103,7 @@ mod test {
     #[test]
     fn inner_schema_should_return_the_inner_schema() {
         let id = Uuid::new_v4();
-        let mem_schema = MemoryCacheSchema::new(Schema::new(id, "TEST", None));
+        let mem_schema = MemoryCacheSchema::new(Schema::new(id, "TEST", None), vec![]);
         assert_eq!(mem_schema.inner_schema().id, id, "The schemas are not the same");
     }
 

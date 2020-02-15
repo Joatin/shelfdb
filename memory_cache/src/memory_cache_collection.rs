@@ -110,13 +110,13 @@ mod test {
 
     #[test]
     fn inner_collection_should_return_the_inner_collection() {
-        let cache = MemoryCacheCollection::new(Collection::new("TEST".to_string(), None));
+        let cache = MemoryCacheCollection::new(Collection::new("TEST".to_string(), None), vec![]);
         assert_eq!(cache.inner_collection().name, "TEST");
     }
 
     #[test]
     fn inner_collection_mut_should_return_the_inner_collection() {
-        let mut cache = MemoryCacheCollection::new(Collection::new("TEST".to_string(), None));
+        let mut cache = MemoryCacheCollection::new(Collection::new("TEST".to_string(), None), vec![]);
         assert_eq!(cache.inner_collection_mut().name, "TEST");
     }
 }
