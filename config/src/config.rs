@@ -10,7 +10,8 @@ pub struct Config {
     pub data_folder: String,
     pub client_server_port: u16,
     pub admin_server_port: u16,
-    pub host: String
+    pub host: String,
+    pub log_level: String
 }
 
 /// The configuration object for the Shelf database. This struct holds all configuration
@@ -52,6 +53,7 @@ impl Config {
         config.set_default("clientServerPort", 5600)?;
         config.set_default("adminServerPort", 5601)?;
         config.set_default("host", "127.0.0.1")?;
+        config.set_default("logLevel", "info")?;
 
         Ok(())
     }

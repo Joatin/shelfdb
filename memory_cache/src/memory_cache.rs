@@ -13,6 +13,7 @@ use tokio::sync::broadcast::{channel, Sender, Receiver};
 use crate::memory_cache_schema::MemoryCacheSchema;
 use futures::future::join_all;
 use crate::memory_cache_collection::MemoryCacheCollection;
+use std::time::Instant;
 
 
 pub struct MemoryCache {
@@ -45,6 +46,7 @@ impl Cache for MemoryCache
     fn load<'a, S: Store>(&'a mut self, logger: &'a Logger, store: &'a S) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>> {
 
         async move {
+            let start_time = Instant::now();
             info!(logger, "Fetching schemas from store");
             let schemas = store.get_schemas(&logger).await?;
             info!(logger, "Info found {} schemas", schemas.len());
@@ -64,18 +66,7 @@ impl Cache for MemoryCache
                 self.schemas.push(RwLock::new(MemoryCacheSchema::new(schema, mapped_collections)));
             }
 
-
-
-//            {
-//                let mapped_schemas: Vec<_> = schemas.into_iter().map(|i| RwLock::new(MemoryCacheSchema::new(i))).collect();
-//                for schema_lock in &mapped_schemas {
-//                    let lock = schema_lock.read().unwrap();
-//                    let logger = logger.new(o!("schema" => lock.name.to_string()));
-//                    lock.validate(&logger)?;
-//                }
-//                self.schemas = mapped_schemas;
-//            }
-            info!(logger, "All schemas fetched and added to cache! 😎");
+            info!(logger, "All schemas fetched and added to cache! 😎"; "load_time" => format!("{}ms", Instant::now().duration_since(start_time).as_millis()));
             Ok(())
         }.boxed()
     }
@@ -135,6 +126,12 @@ impl Cache for MemoryCache
     fn cache_size(&self) -> usize {
         let mut size = 0;
         size += mem::size_of_val(&self);
+
+        for schema in &self.schemas {
+            let lock = schema.read().unwrap();
+            size += lock.get_size();
+        }
+
         size
     }
 

@@ -1,5 +1,6 @@
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use std::mem;
 
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -20,6 +21,14 @@ impl Collection {
             description,
             created_at: Utc::now()
         }
+    }
+
+    pub fn get_size(&self) -> usize {
+        let mut size = mem::size_of::<Self>();
+        if let Some(desc) = &self.description {
+            size += mem::size_of_val(desc);
+        }
+        size
     }
 }
 

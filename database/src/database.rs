@@ -32,19 +32,37 @@ impl<C: Cache, S: Store> Database<C, S> {
                 let collection_lock = schema.collection_by_name("Car").unwrap();
                 let mut collection = collection_lock.write().unwrap();
 
-                info!(logger, "Creating one million ids");
-                let docs: Vec<_> = vec![0;100_000].into_iter().map(|_| Document {
+                let mut model_s = HashMap::new();
+                model_s.insert("brand".to_string(), serde_json::to_value("Tesla").unwrap());
+                model_s.insert("make".to_string(), serde_json::to_value("Model S").unwrap());
+                collection.set_document(Document {
                     id: Uuid::new_v4(),
-                    fields: HashMap::new()
-                }).collect();
+                    fields: model_s
+                });
 
+                let mut model_x = HashMap::new();
+                model_x.insert("brand".to_string(), serde_json::to_value("Tesla").unwrap());
+                model_x.insert("make".to_string(), serde_json::to_value("Model X").unwrap());
+                collection.set_document(Document {
+                    id: Uuid::new_v4(),
+                    fields: model_x
+                });
 
-                info!(logger, "Creating crazy amount of documents");
+                let mut model_3 = HashMap::new();
+                model_3.insert("brand".to_string(), serde_json::to_value("Tesla").unwrap());
+                model_3.insert("make".to_string(), serde_json::to_value("Model 3").unwrap());
+                collection.set_document(Document {
+                    id: Uuid::new_v4(),
+                    fields: model_3
+                });
 
-                for doc in docs {
-                    collection.set_document(doc);
-                }
-                info!(logger, "Done creating fake data");
+                let mut model_y = HashMap::new();
+                model_y.insert("brand".to_string(), serde_json::to_value("Tesla").unwrap());
+                model_y.insert("make".to_string(), serde_json::to_value("Model Y").unwrap());
+                collection.set_document(Document {
+                    id: Uuid::new_v4(),
+                    fields: model_y
+                });
             }
 
 

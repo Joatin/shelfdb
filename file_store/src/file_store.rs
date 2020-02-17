@@ -21,6 +21,7 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::io::{Write, Read};
 use flate2::read::GzDecoder;
+use colored::*;
 
 pub struct FileStore {
     base_path: String,
@@ -31,7 +32,7 @@ pub struct FileStore {
 impl FileStore {
 
     pub async fn new(logger: &Logger, config: &Config) -> Result<Self, Error> {
-        info!(logger, "Setting up file store");
+        info!(logger, "Setting up file store"; "data_folder" => Path::new(&config.data_folder).canonicalize().unwrap().to_str().unwrap().to_owned());
 
         Ok(Self {
             base_path: config.data_folder.to_owned(),
@@ -76,7 +77,7 @@ impl Store for FileStore {
 
 
     fn get_collections(&self, logger: &Logger, schema: &Schema) -> Pin<Box<dyn Future<Output=Result<Vec<Collection>, Error>> + Send>> {
-        let logger = logger.clone();
+        let logger = logger.new(o!("schema_name" => schema.name.to_string(), "schema_id" => schema.id.to_string()));
         let path = Path::new(&self.base_path).join(&schema.name).join("collections.json");
         let base_path = self.base_path.to_string();
 
@@ -108,28 +109,25 @@ impl Store for FileStore {
     }
 
     fn get_documents(&self, logger: &Logger, schema: &Schema, collection: &Collection) -> Pin<Box<dyn Future<Output=Result<Vec<Document>, Error>> + Send>> {
-        let logger = logger.clone();
+        let logger = logger.new(o!("schema_name" => schema.name.to_string(), "schema_id" => schema.id.to_string(), "collection_name" => collection.name.to_string(), "collection_id" => collection.id.to_string()));
         let path = Path::new(&self.base_path).join(&schema.name).join(&format!("{}_docs", collection.name));
 
         async move {
             let mut documents = vec![];
 
             if path.is_dir() {
-                debug!(logger, "Fetching documents from files");
                 let files: Vec<_> = path.read_dir().unwrap().collect();
                 for file in files {
                     if let Ok(dir) = file {
                         let name = dir.file_name();
-                        debug!(logger, "Reading file {:?}", name);
+                        trace!(logger, "Reading file {}", name.to_str().unwrap().yellow());
                         let mut file = OpenOptions::new()
                             .read(true)
-                            .open(path.join(name))
+                            .open(path.join(name.clone()))
                             .await?;
 
                         let mut contents = vec![];
                         file.read_to_end(&mut contents).await?;
-
-                        debug!(logger, "Loaded file");
 
                         let mut gz = GzDecoder::new(&contents[..]);
                         let mut decoded = String::new();
@@ -137,7 +135,11 @@ impl Store for FileStore {
 
                         let mut result = serde_json::from_str::<Vec<Document>>(&decoded)?;
 
-                        debug!(logger, "Read {} documents from file", result.len());
+                        if result.is_empty() {
+                            warn!(logger, "Weird, found file with no content"; "file_name" => name.to_str().unwrap());
+                        }
+
+                        trace!(logger, "Found {} documents in file {}", result.len().to_string().yellow(), name.to_str().unwrap().yellow());
 
                         documents.append(&mut result);
                     }
@@ -154,7 +156,7 @@ impl Store for FileStore {
 
 
     fn save_schema(&self, logger: &Logger, schema: &Schema) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send>> {
-        let logger = logger.clone();
+        let logger = logger.new(o!("schema_name" => schema.name.to_string(), "schema_id" => schema.id.to_string()));
         let base_path = self.base_path.clone();
         let schema = schema.clone();
         let all_schemas_fut = self.get_schemas(&logger);
@@ -190,6 +192,7 @@ impl Store for FileStore {
     }
 
     fn save_collection<'a>(&'a self, logger: &'a Logger, schema: &'a Schema, collection: &'a Collection) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>> {
+        let logger = logger.new(o!("schema_name" => schema.name.to_string(), "schema_id" => schema.id.to_string(), "collection_name" => collection.name.to_string(), "collection_id" => collection.id.to_string()));
         debug!(logger, "Saving collection for schema {}", schema.name);
         async move {
             let mut collections = self.collections.lock().await;

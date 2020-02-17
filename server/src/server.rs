@@ -60,7 +60,7 @@ impl Server {
                 rx.await.ok();
             });
 
-            info!(logger, "Server listening on {}", format!("http://{}", addr).underline().bold().blue());
+            info!(logger, "Server listening on {} 🔗", format!("http://{}", addr).underline().bold().blue());
             if let Err(e) = server.await {
                 eprintln!("Server error: {}", e);
             }
@@ -122,8 +122,9 @@ impl Server {
         let start_time = Instant::now();
 
         let logger = context.logger.clone();
+        let method_and_uri = format!("{} {}", req.method(), req.uri().path()).yellow();
 
-        info!(logger, "Received request {}", format!("{} {}", req.method(), req.uri().path()).yellow());
+        debug!(logger, "Received request {}", method_and_uri);
 
         if req.uri().path().starts_with(&"/admin") {
             return match (req.method(), req.uri().path()) {
@@ -162,7 +163,7 @@ impl Server {
             },
         };
 
-        info!(logger, "Handled request in {}", format!("{:?}ms", Instant::now().duration_since(start_time).as_secs_f64() * 1000.0).yellow());
+        info!(logger, "Handled request {} in {}", method_and_uri, format!("{:?}ms", Instant::now().duration_since(start_time).as_secs_f64() * 1000.0).yellow());
 
         res
     }

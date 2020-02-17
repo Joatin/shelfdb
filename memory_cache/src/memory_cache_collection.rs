@@ -2,6 +2,7 @@ use shelf_database::{Collection, CacheCollection, Document};
 use uuid::Uuid;
 use std::sync::RwLock;
 use std::collections::BTreeMap;
+use std::mem;
 
 
 pub struct MemoryCacheCollection {
@@ -26,6 +27,19 @@ impl MemoryCacheCollection {
             doc.clone()
         }).collect();
         (self.collection.clone(), documents)
+    }
+
+    pub fn get_size(&self) -> usize {
+        let mut size = self.id_index.len() * (mem::size_of::<Uuid>() + mem::size_of::<usize>());
+
+        for doc in &self.documents {
+            let lock = doc.read().unwrap();
+            size += lock.get_size();
+        }
+
+        size += self.collection.get_size();
+
+        size
     }
 }
 

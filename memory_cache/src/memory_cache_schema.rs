@@ -25,6 +25,17 @@ impl MemoryCacheSchema {
         }).collect();
         (self.schema.clone(), collection)
     }
+
+    pub fn get_size(&self) -> usize {
+        let mut size = 0;
+
+        for coll in &self.collections {
+            let lock = coll.read().unwrap();
+            size += lock.get_size();
+        }
+
+        size
+    }
 }
 
 impl CacheSchema for MemoryCacheSchema {
