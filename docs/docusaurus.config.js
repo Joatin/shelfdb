@@ -10,7 +10,7 @@ module.exports = {
     navbar: {
       title: 'Shelf',
       logo: {
-        alt: 'My Site Logo',
+        alt: 'Shelf Logo',
         src: 'img/logo.svg',
       },
       links: [
@@ -46,10 +46,6 @@ module.exports = {
               label: 'Stack Overflow',
               href: 'https://stackoverflow.com/questions/tagged/shelfdb',
             },
-            {
-              label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
-            },
           ],
         },
         {
@@ -61,7 +57,7 @@ module.exports = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/facebook/shelfdb',
+              href: 'https://github.com/joatin/shelfdb',
             },
             {
               label: 'Twitter',
