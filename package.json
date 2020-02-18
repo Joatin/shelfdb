@@ -15,8 +15,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "lint-staged",
-      "pre-push": "cargo test && cargo clippy"
+      "pre-commit": "lint-staged"
     }
   }
 }
