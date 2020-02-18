@@ -13,7 +13,7 @@ jobs:
         toolchain: nightly
         override: true
     - name: Run fmt
-      run: cargo +nightly fmt --check
+      run: cargo +nightly fmt -- --check
     - name: Run tests
       run: cargo test
     - name: Run fmt
