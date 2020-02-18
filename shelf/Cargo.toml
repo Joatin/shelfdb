@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Joatin Granlund <granlundjoatin@icloud.com>"]
 edition = "2018"
 repository = "https://github.com/Joatin/shelf"
+license-file = "../LICENSE"
+description = "The GraphQL database. Makes storing data easy!"
+publish = false
 
 [dependencies]
 slog = { version = "2.5.2", features = ["max_level_trace"] }

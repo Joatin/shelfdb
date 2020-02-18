@@ -1,4 +1,6 @@
+#![deny(clippy::pedantic)]
 #![allow(clippy::module_inception)]
+#![allow(clippy::multiple_crate_versions)]
 #![deny(dead_code)]
 #![deny(unused_imports)]
 

@@ -234,13 +234,10 @@ impl Store for FileStore {
         async move {
             let mut collections = self.collections.lock().await;
 
-            match collections.get_mut(&schema.name) {
-                Some(list) => {
-                    list.push(collection.clone());
-                }
-                None => {
-                    collections.insert(schema.name.to_string(), vec![collection.clone()]);
-                }
+            if let Some(list) = collections.get_mut(&schema.name) {
+                list.push(collection.clone());
+            } else {
+                collections.insert(schema.name.to_string(), vec![collection.clone()]);
             }
             Ok(())
         }
@@ -257,20 +254,16 @@ impl Store for FileStore {
         async move {
             let mut documents = self.documents.lock().await;
 
-            match documents.get_mut(&schema.name) {
-                Some(schemas) => match schemas.get_mut(&collection.name) {
-                    Some(collections) => {
-                        collections.push(document);
-                    }
-                    None => {
-                        schemas.insert(collection.name.to_string(), vec![document]);
-                    }
-                },
-                None => {
-                    let mut schemas = HashMap::new();
+            if let Some(schemas) = documents.get_mut(&schema.name) {
+                if let Some(collections) = schemas.get_mut(&collection.name) {
+                    collections.push(document);
+                } else {
                     schemas.insert(collection.name.to_string(), vec![document]);
-                    documents.insert(schema.name.to_string(), schemas);
                 }
+            } else {
+                let mut schemas = HashMap::new();
+                schemas.insert(collection.name.to_string(), vec![document]);
+                documents.insert(schema.name.to_string(), schemas);
             }
             Ok(())
         }
@@ -295,7 +288,6 @@ impl Store for FileStore {
                         create_dir(base_path.clone()).await?;
                     }
 
-
                     let path = base_path.join("collections.json");
 
                     debug!(logger, "Writing file");
@@ -318,8 +310,15 @@ impl Store for FileStore {
                 let documents = mem::replace(&mut *self.documents.lock().await, HashMap::new());
                 for (schema_name, collections) in documents {
                     for (collection_name, documents) in collections {
-                        info!(logger, "Saving documents for collection {} in schema {}", collection_name, &schema_name);
-                        let base_path = Path::new(&self.base_path).join(&schema_name).join(format!("{}_docs", collection_name));
+                        info!(
+                            logger,
+                            "Saving documents for collection {} in schema {}",
+                            collection_name,
+                            &schema_name
+                        );
+                        let base_path = Path::new(&self.base_path)
+                            .join(&schema_name)
+                            .join(format!("{}_docs", collection_name));
                         if !base_path.is_dir() {
                             create_dir(base_path.clone()).await?;
                         }
@@ -329,42 +328,43 @@ impl Store for FileStore {
                         let dir: Vec<_> = read_dir(base_path.clone()).await?.collect().await;
 
                         for (index, chunk) in chunks.enumerate() {
+                            if let Some(dir) = dir.iter().find(|i| {
+                                i.as_ref()
+                                    .unwrap()
+                                    .file_name()
+                                    .to_str()
+                                    .unwrap()
+                                    .starts_with(&format!("{}_", index))
+                            }) {
+                                let file_name: String = dir
+                                    .as_ref()
+                                    .unwrap()
+                                    .file_name()
+                                    .to_str()
+                                    .unwrap()
+                                    .to_string();
+                                let hash = u64::from_str(
+                                    file_name.split('_').collect::<Vec<_>>()[1]
+                                        .split('.')
+                                        .collect::<Vec<_>>()[0],
+                                )
+                                .unwrap();
 
-                            match dir.iter().find(|i| i.as_ref().unwrap().file_name().to_str().unwrap().starts_with(&format!("{}_", index))) {
-                                Some(dir) => {
-                                    let file_name: String= dir.as_ref().unwrap().file_name().to_str().unwrap().to_string();
-                                    let hash = u64::from_str(file_name.split('_').collect::<Vec<_>>()[1].split('.').collect::<Vec<_>>()[0]).unwrap();
+                                let data = serde_json::to_string(&chunk).unwrap();
 
-                                    let data = serde_json::to_string(&chunk).unwrap();
+                                let mut s = DefaultHasher::new();
+                                data.hash(&mut s);
+                                let sum = s.finish();
 
-                                    let mut s = DefaultHasher::new();
-                                    data.hash(&mut s);
-                                    let sum = s.finish();
-
-                                    if sum != hash {
-                                        let path = base_path.join(&format!("{}_{}.gz", index, sum));
-                                        let mut file = OpenOptions::new()
-                                            .write(true)
-                                            .create(true)
-                                            .open(path)
-                                            .await?;
-
-                                        let mut e = GzEncoder::new(Vec::new(), Compression::default());
-                                        e.write_all(data.as_bytes())?;
-
-                                        file.write_all(&e.finish().unwrap()).await?;
-                                    } else {
-                                        debug!(logger, "Chunk {} has not changed for collection {} in schema {}", index, collection_name, &schema_name);
-                                    }
-                                },
-                                None => {
-
-                                    let data = serde_json::to_string(&chunk).unwrap();
-
-                                    let mut s = DefaultHasher::new();
-                                    data.hash(&mut s);
-                                    let sum = s.finish();
-
+                                if sum == hash {
+                                    debug!(
+                                        logger,
+                                        "Chunk {} has not changed for collection {} in schema {}",
+                                        index,
+                                        collection_name,
+                                        &schema_name
+                                    );
+                                } else {
                                     let path = base_path.join(&format!("{}_{}.gz", index, sum));
                                     let mut file = OpenOptions::new()
                                         .write(true)
@@ -372,21 +372,37 @@ impl Store for FileStore {
                                         .open(path)
                                         .await?;
 
-
                                     let mut e = GzEncoder::new(Vec::new(), Compression::default());
                                     e.write_all(data.as_bytes())?;
 
                                     file.write_all(&e.finish().unwrap()).await?;
                                 }
+                            } else {
+                                let data = serde_json::to_string(&chunk).unwrap();
+
+                                let mut s = DefaultHasher::new();
+                                data.hash(&mut s);
+                                let sum = s.finish();
+
+                                let path = base_path.join(&format!("{}_{}.gz", index, sum));
+                                let mut file = OpenOptions::new()
+                                    .write(true)
+                                    .create(true)
+                                    .open(path)
+                                    .await?;
+
+                                let mut e = GzEncoder::new(Vec::new(), Compression::default());
+                                e.write_all(data.as_bytes())?;
+
+                                file.write_all(&e.finish().unwrap()).await?;
                             }
                         }
-
                     }
                 }
             }
 
-
             Ok(())
-        }.boxed()
+        }
+        .boxed()
     }
 }
