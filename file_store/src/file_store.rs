@@ -41,6 +41,131 @@ impl FileStore {
             documents: Mutex::new(HashMap::new()),
         })
     }
+
+    async fn do_save_collections(&self, logger: &Logger) -> Result<(), Error> {
+        let schemas = mem::replace(&mut *self.collections.lock().await, HashMap::new());
+        for (schema_name, collections) in schemas {
+            info!(logger, "Saving collections for schema {}", schema_name);
+            let base_path = Path::new(&self.base_path).join(schema_name);
+
+            if !base_path.is_dir() {
+                create_dir(base_path.clone()).await?;
+            }
+
+            let path = base_path.join("collections.json");
+
+            debug!(logger, "Writing file");
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open(path)
+                .await?;
+
+            let data = serde_json::to_string_pretty(&collections).unwrap();
+
+            file.write_all(&data.as_bytes()).await?;
+        }
+        debug!(logger, "Saved collections");
+
+        Ok(())
+    }
+
+    async fn do_save_documents(&self, logger: &Logger) -> Result<(), Error> {
+        let documents = mem::replace(&mut *self.documents.lock().await, HashMap::new());
+        for (schema_name, collections) in documents {
+            for (collection_name, documents) in collections {
+                info!(
+                    logger,
+                    "Saving documents for collection {} in schema {}",
+                    collection_name,
+                    &schema_name
+                );
+                let base_path = Path::new(&self.base_path)
+                    .join(&schema_name)
+                    .join(format!("{}_docs", collection_name));
+                if !base_path.is_dir() {
+                    create_dir(base_path.clone()).await?;
+                }
+
+                let chunks = documents.chunks(10_000);
+
+                let dir: Vec<_> = read_dir(base_path.clone()).await?.collect().await;
+
+                for (index, chunk) in chunks.enumerate() {
+                    if let Some(dir) = dir.iter().find(|i| {
+                        i.as_ref()
+                            .unwrap()
+                            .file_name()
+                            .to_str()
+                            .unwrap()
+                            .starts_with(&format!("{}_", index))
+                    }) {
+                        let file_name: String = dir
+                            .as_ref()
+                            .unwrap()
+                            .file_name()
+                            .to_str()
+                            .unwrap()
+                            .to_string();
+                        let hash = u64::from_str(
+                            file_name.split('_').collect::<Vec<_>>()[1]
+                                .split('.')
+                                .collect::<Vec<_>>()[0],
+                        )
+                        .unwrap();
+
+                        let data = serde_json::to_string(&chunk).unwrap();
+
+                        let mut s = DefaultHasher::new();
+                        data.hash(&mut s);
+                        let sum = s.finish();
+
+                        if sum == hash {
+                            debug!(
+                                logger,
+                                "Chunk {} has not changed for collection {} in schema {}",
+                                index,
+                                collection_name,
+                                &schema_name
+                            );
+                        } else {
+                            let path = base_path.join(&format!("{}_{}.gz", index, sum));
+                            let mut file = OpenOptions::new()
+                                .write(true)
+                                .create(true)
+                                .open(path)
+                                .await?;
+
+                            let mut e = GzEncoder::new(Vec::new(), Compression::default());
+                            e.write_all(data.as_bytes())?;
+
+                            file.write_all(&e.finish().unwrap()).await?;
+                        }
+                    } else {
+                        let data = serde_json::to_string(&chunk).unwrap();
+
+                        let mut s = DefaultHasher::new();
+                        data.hash(&mut s);
+                        let sum = s.finish();
+
+                        let path = base_path.join(&format!("{}_{}.gz", index, sum));
+                        let mut file = OpenOptions::new()
+                            .write(true)
+                            .create(true)
+                            .open(path)
+                            .await?;
+
+                        let mut e = GzEncoder::new(Vec::new(), Compression::default());
+                        e.write_all(data.as_bytes())?;
+
+                        file.write_all(&e.finish().unwrap()).await?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl Store for FileStore {
@@ -275,132 +400,9 @@ impl Store for FileStore {
         logger: &'a Logger,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         async move {
-            info!(logger, "Writing data to disk");
-
-            // STEP 1 - Save Collections
-            {
-                let schemas = mem::replace(&mut *self.collections.lock().await, HashMap::new());
-                for (schema_name, collections) in schemas {
-                    info!(logger, "Saving collections for schema {}", schema_name);
-                    let base_path = Path::new(&self.base_path).join(schema_name);
-
-                    if !base_path.is_dir() {
-                        create_dir(base_path.clone()).await?;
-                    }
-
-                    let path = base_path.join("collections.json");
-
-                    debug!(logger, "Writing file");
-                    let mut file = OpenOptions::new()
-                        .write(true)
-                        .create(true)
-                        .open(path)
-                        .await?;
-
-                    let data = serde_json::to_string_pretty(&collections).unwrap();
-
-                    file.write_all(&data.as_bytes()).await?;
-
-                    debug!(logger, "Saved collections")
-                }
-            }
-
-            // STEP 2 - Save documents
-            {
-                let documents = mem::replace(&mut *self.documents.lock().await, HashMap::new());
-                for (schema_name, collections) in documents {
-                    for (collection_name, documents) in collections {
-                        info!(
-                            logger,
-                            "Saving documents for collection {} in schema {}",
-                            collection_name,
-                            &schema_name
-                        );
-                        let base_path = Path::new(&self.base_path)
-                            .join(&schema_name)
-                            .join(format!("{}_docs", collection_name));
-                        if !base_path.is_dir() {
-                            create_dir(base_path.clone()).await?;
-                        }
-
-                        let chunks = documents.chunks(10_000);
-
-                        let dir: Vec<_> = read_dir(base_path.clone()).await?.collect().await;
-
-                        for (index, chunk) in chunks.enumerate() {
-                            if let Some(dir) = dir.iter().find(|i| {
-                                i.as_ref()
-                                    .unwrap()
-                                    .file_name()
-                                    .to_str()
-                                    .unwrap()
-                                    .starts_with(&format!("{}_", index))
-                            }) {
-                                let file_name: String = dir
-                                    .as_ref()
-                                    .unwrap()
-                                    .file_name()
-                                    .to_str()
-                                    .unwrap()
-                                    .to_string();
-                                let hash = u64::from_str(
-                                    file_name.split('_').collect::<Vec<_>>()[1]
-                                        .split('.')
-                                        .collect::<Vec<_>>()[0],
-                                )
-                                .unwrap();
-
-                                let data = serde_json::to_string(&chunk).unwrap();
-
-                                let mut s = DefaultHasher::new();
-                                data.hash(&mut s);
-                                let sum = s.finish();
-
-                                if sum == hash {
-                                    debug!(
-                                        logger,
-                                        "Chunk {} has not changed for collection {} in schema {}",
-                                        index,
-                                        collection_name,
-                                        &schema_name
-                                    );
-                                } else {
-                                    let path = base_path.join(&format!("{}_{}.gz", index, sum));
-                                    let mut file = OpenOptions::new()
-                                        .write(true)
-                                        .create(true)
-                                        .open(path)
-                                        .await?;
-
-                                    let mut e = GzEncoder::new(Vec::new(), Compression::default());
-                                    e.write_all(data.as_bytes())?;
-
-                                    file.write_all(&e.finish().unwrap()).await?;
-                                }
-                            } else {
-                                let data = serde_json::to_string(&chunk).unwrap();
-
-                                let mut s = DefaultHasher::new();
-                                data.hash(&mut s);
-                                let sum = s.finish();
-
-                                let path = base_path.join(&format!("{}_{}.gz", index, sum));
-                                let mut file = OpenOptions::new()
-                                    .write(true)
-                                    .create(true)
-                                    .open(path)
-                                    .await?;
-
-                                let mut e = GzEncoder::new(Vec::new(), Compression::default());
-                                e.write_all(data.as_bytes())?;
-
-                                file.write_all(&e.finish().unwrap()).await?;
-                            }
-                        }
-                    }
-                }
-            }
-
+            info!(logger, "Writing data to disk \u{1f4bf}");
+            self.do_save_collections(&logger).await?;
+            self.do_save_documents(&logger).await?;
             Ok(())
         }
         .boxed()
