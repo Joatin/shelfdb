@@ -1,0 +1,22 @@
+{
+  "name": "root",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "docs"
+    ]
+  },
+  "scripts": {},
+  "devDependencies": {
+    "husky": "^4.2.3",
+    "lint-staged": "^10.0.7",
+    "prettier": "1.19.1"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "cargo test && cargo clippy"
+    }
+  }
+}

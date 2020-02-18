@@ -1,28 +1,32 @@
-use shelf_database::{CacheSchema, Schema, Collection, CacheCollection, Document};
-use uuid::Uuid;
-use std::sync::{RwLock};
-use std::ops::Deref;
 use crate::memory_cache_collection::MemoryCacheCollection;
 use failure::Error;
+use shelf_database::{CacheCollection, CacheSchema, Collection, Document, Schema};
+use std::ops::Deref;
+use std::sync::RwLock;
+use uuid::Uuid;
 
 pub struct MemoryCacheSchema {
     schema: Schema,
-    collections: Vec<RwLock<MemoryCacheCollection>>
+    collections: Vec<RwLock<MemoryCacheCollection>>,
 }
 
 impl MemoryCacheSchema {
     pub fn new(schema: Schema, collections: Vec<RwLock<MemoryCacheCollection>>) -> Self {
         Self {
             schema,
-            collections
+            collections,
         }
     }
 
     pub fn get_data_cloned(&self) -> (Schema, Vec<(Collection, Vec<Document>)>) {
-        let collection: Vec<_> = self.collections().iter().map(|lock| {
-            let coll = lock.read().unwrap();
-            coll.get_data_cloned()
-        }).collect();
+        let collection: Vec<_> = self
+            .collections()
+            .iter()
+            .map(|lock| {
+                let coll = lock.read().unwrap();
+                coll.get_data_cloned()
+            })
+            .collect();
         (self.schema.clone(), collection)
     }
 
@@ -66,18 +70,24 @@ impl CacheSchema for MemoryCacheSchema {
             };
             if id == collection.id {
                 // Nice found same item, lets replace it
-                let index = self.collections.iter().position(|i| {
-                    let lock = i.read().unwrap();
-                    lock.inner_collection().id == collection.id
-                }).unwrap();
+                let index = self
+                    .collections
+                    .iter()
+                    .position(|i| {
+                        let lock = i.read().unwrap();
+                        lock.inner_collection().id == collection.id
+                    })
+                    .unwrap();
                 self.collections.remove(index);
-                self.collections.push(RwLock::new(MemoryCacheCollection::new(collection, vec![])));
+                self.collections
+                    .push(RwLock::new(MemoryCacheCollection::new(collection, vec![])));
                 Ok(())
             } else {
                 bail!("Another collection with the same name does already exist")
             }
         } else {
-            self.collections.push(RwLock::new(MemoryCacheCollection::new(collection, vec![])));
+            self.collections
+                .push(RwLock::new(MemoryCacheCollection::new(collection, vec![])));
             Ok(())
         }
     }
@@ -108,14 +118,17 @@ impl Deref for MemoryCacheSchema {
 #[cfg(test)]
 mod test {
     use crate::memory_cache_schema::MemoryCacheSchema;
-    use shelf_database::{Schema, CacheSchema};
+    use shelf_database::{CacheSchema, Schema};
     use uuid::Uuid;
 
     #[test]
     fn inner_schema_should_return_the_inner_schema() {
         let id = Uuid::new_v4();
         let mem_schema = MemoryCacheSchema::new(Schema::new(id, "TEST", None), vec![]);
-        assert_eq!(mem_schema.inner_schema().id, id, "The schemas are not the same");
+        assert_eq!(
+            mem_schema.inner_schema().id,
+            id,
+            "The schemas are not the same"
+        );
     }
-
 }

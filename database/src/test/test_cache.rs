@@ -1,11 +1,11 @@
-use crate::{Cache, Schema, Store, CacheSchema, Collection, CacheCollection, Document};
-use slog::{Logger};
-use std::sync::{RwLock};
-use uuid::Uuid;
+use crate::{Cache, CacheCollection, CacheSchema, Collection, Document, Schema, Store};
 use failure::Error;
-use std::pin::Pin;
+use slog::Logger;
 use std::future::Future;
+use std::pin::Pin;
+use std::sync::RwLock;
 use tokio::sync::broadcast::Receiver;
+use uuid::Uuid;
 
 pub struct TestCache;
 pub struct TestCacheSchema;
@@ -14,11 +14,19 @@ pub struct TestCacheCollection;
 impl Cache for TestCache {
     type CacheSchema = TestCacheSchema;
 
-    fn load<'a, S: Store>(&'a mut self, logger: &'a Logger, store: &'a S) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send>> {
+    fn load<'a, S: Store>(
+        &'a mut self,
+        _logger: &'a Logger,
+        _store: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
         unimplemented!()
     }
 
-    fn save<'a, S: Store>(&'a self, logger: &'a Logger, store: &'a S) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send>> {
+    fn save<'a, S: Store>(
+        &'a self,
+        _logger: &'a Logger,
+        _store: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
         unimplemented!()
     }
 
@@ -26,15 +34,20 @@ impl Cache for TestCache {
         unimplemented!()
     }
 
-    fn schema(&self, logger: &Logger, id: Uuid) -> Option<&RwLock<Self::CacheSchema>> {
+    fn schema(&self, _logger: &Logger, _id: Uuid) -> Option<&RwLock<Self::CacheSchema>> {
         unimplemented!()
     }
 
-    fn schema_by_name(&self, logger: &Logger, name: &str) -> Option<&RwLock<Self::CacheSchema>> {
+    fn schema_by_name(&self, _logger: &Logger, _name: &str) -> Option<&RwLock<Self::CacheSchema>> {
         unimplemented!()
     }
 
-    fn set_schema(&mut self, logger: &Logger, schema: Schema, new_graphql_schema: &str) -> Result<(), Error> {
+    fn set_schema(
+        &mut self,
+        _logger: &Logger,
+        _schema: Schema,
+        _new_graphql_schema: &str,
+    ) -> Result<(), Error> {
         unimplemented!()
     }
 
@@ -66,21 +79,21 @@ impl CacheSchema for TestCacheSchema {
         unimplemented!()
     }
 
-    fn set_collection(&mut self, collection: Collection) -> Result<(), Error> {
+    fn set_collection(&mut self, _collection: Collection) -> Result<(), Error> {
         unimplemented!()
     }
 
-    fn collection(&self, id: Uuid) -> Option<&RwLock<Self::CacheCollection>> {
+    fn collection(&self, _id: Uuid) -> Option<&RwLock<Self::CacheCollection>> {
         unimplemented!()
     }
 
-    fn collection_by_name(&self, name: &str) -> Option<&RwLock<Self::CacheCollection>> {
+    fn collection_by_name(&self, _name: &str) -> Option<&RwLock<Self::CacheCollection>> {
         unimplemented!()
     }
 }
 
 impl CacheCollection for TestCacheCollection {
-    fn set_document(&mut self, document: Document) {
+    fn set_document(&mut self, _document: Document) {
         unimplemented!()
     }
 
@@ -96,15 +109,19 @@ impl CacheCollection for TestCacheCollection {
         unimplemented!()
     }
 
-    fn document(&self, id: Uuid) -> Option<&RwLock<Document>> {
+    fn document(&self, _id: Uuid) -> Option<&RwLock<Document>> {
         unimplemented!()
     }
 
-    fn find_first_by_field(&self, field_name: &str, field_value: &str) -> Option<&RwLock<Document>> {
+    fn find_first_by_field(
+        &self,
+        _field_name: &str,
+        _field_value: &str,
+    ) -> Option<&RwLock<Document>> {
         unimplemented!()
     }
 
-    fn find_by_field(&self, field_name: &str, field_value: &str) -> Vec<&RwLock<Document>> {
+    fn find_by_field(&self, _field_name: &str, _field_value: &str) -> Vec<&RwLock<Document>> {
         unimplemented!()
     }
 }

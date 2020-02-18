@@ -1,19 +1,20 @@
+#[macro_use]
+extern crate slog;
+#[macro_use]
+extern crate human_panic;
 
-#[macro_use] extern crate slog;
-#[macro_use] extern crate human_panic;
-
+use colored::*;
 use failure::Error;
-use sloggers::terminal::TerminalLoggerBuilder;
-use sloggers::types::Severity;
-use sloggers::Build;
-use shelf_server::Server;
+use graceful::SignalGuard;
+use shelf_config::Config;
 use shelf_database::Database;
 use shelf_file_store::FileStore;
 use shelf_memory_cache::MemoryCache;
-use graceful::SignalGuard;
+use shelf_server::Server;
+use sloggers::terminal::TerminalLoggerBuilder;
+use sloggers::types::Severity;
+use sloggers::Build;
 use std::process;
-use shelf_config::Config;
-use colored::*;
 use std::str::FromStr;
 
 #[tokio::main]
@@ -21,18 +22,28 @@ async fn main() -> Result<(), Error> {
     setup_panic!();
     let signal_guard = SignalGuard::new();
 
-    let temp_log = TerminalLoggerBuilder::new().level(Severity::Trace).build().unwrap();
+    let temp_log = TerminalLoggerBuilder::new()
+        .level(Severity::Trace)
+        .build()
+        .unwrap();
     if let Ok(config) = Config::load(&temp_log) {
         drop(temp_log);
-        let logger = TerminalLoggerBuilder::new().level(Severity::from_str(&config.log_level).expect("Got invalid log level")).build().unwrap();
+        let logger = TerminalLoggerBuilder::new()
+            .level(Severity::from_str(&config.log_level).expect("Got invalid log level"))
+            .build()
+            .unwrap();
 
         info!(logger, "Starting SHELF 🎉");
-        debug!(logger, "Running on: {} {}", sys_info::os_type().unwrap().yellow(), sys_info::os_release().unwrap().yellow());
+        debug!(
+            logger,
+            "Running on: {} {}",
+            sys_info::os_type().unwrap().yellow(),
+            sys_info::os_release().unwrap().yellow()
+        );
         let store = FileStore::new(&logger, &config).await?;
         let cache = MemoryCache::new(&logger).await?;
         let database = Database::new(&logger, store, cache).await?;
         let server = Server::start(&logger, &config, database).await?;
-
 
         signal_guard.at_exit(move |_sig| {
             info!(logger, "{}", "Initiating shutdown... ↘️".cyan());

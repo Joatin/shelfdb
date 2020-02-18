@@ -1,14 +1,13 @@
-use failure::Error;
-use slog::Logger;
 use crate::cache::Cache;
 use crate::store::Store;
-use crate::{Schema, Document};
+use crate::CacheCollection;
+use crate::CacheSchema;
+use crate::{Document, Schema};
+use failure::Error;
+use slog::Logger;
+use std::collections::HashMap;
 use std::ops::Deref;
 use uuid::Uuid;
-use std::collections::HashMap;
-use crate::CacheSchema;
-use crate::CacheCollection;
-
 
 pub struct Database<C: Cache, S: Store> {
     cache: C,
@@ -16,15 +15,17 @@ pub struct Database<C: Cache, S: Store> {
 }
 
 impl<C: Cache, S: Store> Database<C, S> {
-
     pub async fn new(logger: &Logger, store: S, mut cache: C) -> Result<Self, Error> {
-
         cache.load(&logger, &store).await?;
 
         if cache.is_empty() {
             warn!(logger, "No schemas found, creating initial setup...");
             let schema_id = Uuid::new_v4();
-            cache.set_schema(&logger, Schema::new(schema_id, "shelf", None), include_str!("shelf_base_schema.graphql"))?;
+            cache.set_schema(
+                &logger,
+                Schema::new(schema_id, "shelf", None),
+                include_str!("shelf_base_schema.graphql"),
+            )?;
 
             let schema_lock = cache.schema(&logger, schema_id).unwrap();
             {
@@ -37,7 +38,7 @@ impl<C: Cache, S: Store> Database<C, S> {
                 model_s.insert("make".to_string(), serde_json::to_value("Model S").unwrap());
                 collection.set_document(Document {
                     id: Uuid::new_v4(),
-                    fields: model_s
+                    fields: model_s,
                 });
 
                 let mut model_x = HashMap::new();
@@ -45,7 +46,7 @@ impl<C: Cache, S: Store> Database<C, S> {
                 model_x.insert("make".to_string(), serde_json::to_value("Model X").unwrap());
                 collection.set_document(Document {
                     id: Uuid::new_v4(),
-                    fields: model_x
+                    fields: model_x,
                 });
 
                 let mut model_3 = HashMap::new();
@@ -53,7 +54,7 @@ impl<C: Cache, S: Store> Database<C, S> {
                 model_3.insert("make".to_string(), serde_json::to_value("Model 3").unwrap());
                 collection.set_document(Document {
                     id: Uuid::new_v4(),
-                    fields: model_3
+                    fields: model_3,
                 });
 
                 let mut model_y = HashMap::new();
@@ -61,20 +62,20 @@ impl<C: Cache, S: Store> Database<C, S> {
                 model_y.insert("make".to_string(), serde_json::to_value("Model Y").unwrap());
                 collection.set_document(Document {
                     id: Uuid::new_v4(),
-                    fields: model_y
+                    fields: model_y,
                 });
             }
-
 
             cache.save(&logger, &store).await?;
         }
 
-        info!(logger, "Current cache size is: {}", pretty_bytes::converter::convert(cache.cache_size() as f64));
+        info!(
+            logger,
+            "Current cache size is: {}",
+            pretty_bytes::converter::convert(cache.cache_size() as f64)
+        );
 
-        Ok(Self {
-            cache,
-            store,
-        })
+        Ok(Self { cache, store })
     }
 
     pub fn cache(&self) -> &C {

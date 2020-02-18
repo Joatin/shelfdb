@@ -1,15 +1,15 @@
-use juniper::{GraphQLType, DefaultScalarValue, Registry, ExecutionResult, Executor, Arguments};
-use juniper::meta::MetaType;
 use crate::client::edge::Edge;
 use crate::client::page_info::PageInfo;
-use shelf_database::{Schema as DbSchema, Document, Cache, Store, CacheCollection};
-use std::sync::{Arc, RwLockReadGuard};
 use crate::context::Context;
+use juniper::meta::MetaType;
+use juniper::{Arguments, DefaultScalarValue, ExecutionResult, Executor, GraphQLType, Registry};
+use shelf_database::{Cache, CacheCollection, Document, Schema as DbSchema, Store};
+use std::sync::{Arc, RwLockReadGuard};
 
 pub struct Connection<'a, C: Cache, S: Store> {
     edges: Vec<Edge<'a, C, S>>,
     page_info: PageInfo,
-    total_count: i32
+    total_count: i32,
 }
 
 impl<'a, C: Cache, S: Store> Connection<'a, C, S> {
@@ -22,9 +22,9 @@ impl<'a, C: Cache, S: Store> Connection<'a, C, S> {
                 has_next_page: false,
                 has_previous_page: false,
                 start_cursor: "".to_string(),
-                end_cursor: "".to_string()
+                end_cursor: "".to_string(),
             },
-            total_count: docs.len() as i32
+            total_count: docs.len() as i32,
         }
     }
 }
@@ -38,15 +38,21 @@ impl<'a, C: Cache, S: Store> GraphQLType for Connection<'a, C, S> {
     }
 
     fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r>) -> MetaType<'r>
-        where DefaultScalarValue: 'r
+    where
+        DefaultScalarValue: 'r,
     {
-        let fields  = vec![
-            registry.field::<&Vec<Edge<C, S>>>("edges", &(&info.0.replace("Connection", "Edge"), info.1, info.2)),
+        let fields = vec![
+            registry.field::<&Vec<Edge<C, S>>>(
+                "edges",
+                &(&info.0.replace("Connection", "Edge"), info.1, info.2),
+            ),
             registry.field::<&PageInfo>("pageInfo", &()),
-            registry.field::<&i32>("totalCount", &())
+            registry.field::<&i32>("totalCount", &()),
         ];
 
-        registry.build_object_type::<Connection<C, S>>(&info, &fields).into_meta()
+        registry
+            .build_object_type::<Connection<C, S>>(&info, &fields)
+            .into_meta()
     }
 
     fn resolve_field(
@@ -54,15 +60,20 @@ impl<'a, C: Cache, S: Store> GraphQLType for Connection<'a, C, S> {
         info: &Self::TypeInfo,
         field_name: &str,
         _args: &Arguments,
-        executor: &Executor<Self::Context>
-    )
-        -> ExecutionResult
-    {
+        executor: &Executor<Self::Context>,
+    ) -> ExecutionResult {
         match field_name {
-            "edges" => executor.resolve_with_ctx(&(info.0.replace("Connection", "Edge").as_str(), info.1, info.2), &self.edges),
+            "edges" => executor.resolve_with_ctx(
+                &(
+                    info.0.replace("Connection", "Edge").as_str(),
+                    info.1,
+                    info.2,
+                ),
+                &self.edges,
+            ),
             "pageInfo" => executor.resolve_with_ctx(&(), &self.page_info),
             "totalCount" => executor.resolve_with_ctx(&(), &self.total_count),
-            _ => panic!("Field {} not found", field_name)
+            _ => panic!("Field {} not found", field_name),
         }
     }
 }

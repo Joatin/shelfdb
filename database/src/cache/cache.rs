@@ -1,11 +1,11 @@
-use futures::Future;
-use std::pin::Pin;
+use crate::{CacheSchema, Schema, Store};
 use failure::Error;
-use crate::{Schema, Store, CacheSchema};
+use futures::Future;
 use slog::Logger;
-use uuid::Uuid;
-use tokio::sync::broadcast::Receiver;
+use std::pin::Pin;
 use std::sync::RwLock;
+use tokio::sync::broadcast::Receiver;
+use uuid::Uuid;
 
 /// A cache is mainly responsible for keeping all the indexes of objects
 ///
@@ -14,8 +14,16 @@ use std::sync::RwLock;
 pub trait Cache: Send + Sync + 'static {
     type CacheSchema: CacheSchema;
 
-    fn load<'a, S: Store>(&'a mut self, logger: &'a Logger, store: &'a S) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-    fn save<'a, S: Store>(&'a self, logger: &'a Logger, store: &'a S) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
+    fn load<'a, S: Store>(
+        &'a mut self,
+        logger: &'a Logger,
+        store: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
+    fn save<'a, S: Store>(
+        &'a self,
+        logger: &'a Logger,
+        store: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
 
     /// Retrieves all schemas
     fn schemas(&self) -> &Vec<RwLock<Self::CacheSchema>>;
@@ -27,7 +35,12 @@ pub trait Cache: Send + Sync + 'static {
     fn schema_by_name(&self, logger: &Logger, name: &str) -> Option<&RwLock<Self::CacheSchema>>;
 
     /// Adds or replaces a new schema to the cache
-    fn set_schema(&mut self, logger: &Logger, schema: Schema, new_graphql_schema: &str) -> Result<(), Error>;
+    fn set_schema(
+        &mut self,
+        logger: &Logger,
+        schema: Schema,
+        new_graphql_schema: &str,
+    ) -> Result<(), Error>;
 
     /// Gets the current size in bytes from the cache
     fn cache_size(&self) -> usize;

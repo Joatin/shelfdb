@@ -1,7 +1,7 @@
-use crate::{Document, Collection};
-use uuid::Uuid;
-use std::sync::RwLock;
+use crate::{Collection, Document};
 use std::ops::Deref;
+use std::sync::RwLock;
+use uuid::Uuid;
 
 pub trait CacheCollection: 'static + Send + Sync {
     fn set_document(&mut self, document: Document);
@@ -9,10 +9,10 @@ pub trait CacheCollection: 'static + Send + Sync {
     fn inner_collection_mut(&mut self) -> &mut Collection;
     fn documents(&self) -> &[RwLock<Document>];
     fn document(&self, id: Uuid) -> Option<&RwLock<Document>>;
-    fn find_first_by_field(&self, field_name: &str, field_value: &str) -> Option<&RwLock<Document>>;
+    fn find_first_by_field(&self, field_name: &str, field_value: &str)
+        -> Option<&RwLock<Document>>;
     fn find_by_field(&self, field_name: &str, field_value: &str) -> Vec<&RwLock<Document>>;
 }
-
 
 impl Deref for dyn CacheCollection {
     type Target = Collection;

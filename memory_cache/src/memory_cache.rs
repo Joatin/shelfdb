@@ -1,24 +1,23 @@
-use failure::Error;
-use shelf_database::{Cache, Store, CacheSchema};
-use slog::Logger;
-use pretty_bytes::converter::convert;
-use failure::_core::pin::Pin;
-use shelf_database::Schema;
-use failure::_core::future::Future;
-use futures::FutureExt;
-use std::sync::RwLock;
-use std::mem;
-use uuid::Uuid;
-use tokio::sync::broadcast::{channel, Sender, Receiver};
-use crate::memory_cache_schema::MemoryCacheSchema;
-use futures::future::join_all;
 use crate::memory_cache_collection::MemoryCacheCollection;
+use crate::memory_cache_schema::MemoryCacheSchema;
+use failure::Error;
+use failure::_core::future::Future;
+use failure::_core::pin::Pin;
+use futures::future::join_all;
+use futures::FutureExt;
+use pretty_bytes::converter::convert;
+use shelf_database::Schema;
+use shelf_database::{Cache, CacheSchema, Store};
+use slog::Logger;
+use std::mem;
+use std::sync::RwLock;
 use std::time::Instant;
-
+use tokio::sync::broadcast::{channel, Receiver, Sender};
+use uuid::Uuid;
 
 pub struct MemoryCache {
     schemas: Vec<RwLock<MemoryCacheSchema>>,
-    on_schema_updates_sender: Sender<()>
+    on_schema_updates_sender: Sender<()>,
 }
 
 impl MemoryCache {
@@ -26,25 +25,32 @@ impl MemoryCache {
         info!(logger, "Starting memory cache");
 
         let info = sys_info::mem_info().unwrap();
-        info!(logger, "Current free ram is: {}", convert((info.avail * 1000) as f64));
-
+        info!(
+            logger,
+            "Current free ram is: {}",
+            convert((info.avail * 1000) as f64)
+        );
 
         let (sender, _) = channel(1);
 
         Ok(Self {
             schemas: Vec::new(),
-            on_schema_updates_sender: sender
+            on_schema_updates_sender: sender,
         })
     }
 }
 
 impl Cache for MemoryCache
-    where MemoryCache: Send
+where
+    MemoryCache: Send,
 {
     type CacheSchema = MemoryCacheSchema;
 
-    fn load<'a, S: Store>(&'a mut self, logger: &'a Logger, store: &'a S) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>> {
-
+    fn load<'a, S: Store>(
+        &'a mut self,
+        logger: &'a Logger,
+        store: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         async move {
             let start_time = Instant::now();
             info!(logger, "Fetching schemas from store");
@@ -71,7 +77,11 @@ impl Cache for MemoryCache
         }.boxed()
     }
 
-    fn save<'a, S: Store>(&'a self, logger: &'a Logger, store: &'a S) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>> {
+    fn save<'a, S: Store>(
+        &'a self,
+        logger: &'a Logger,
+        store: &'a S,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         async move {
             for schema_lock in self.schemas.iter() {
                 let (schema, collection) = {
@@ -84,18 +94,19 @@ impl Cache for MemoryCache
                 for (collection, documents) in collection {
                     store.save_collection(&logger, &schema, &collection).await?;
 
-                    let futs: Vec<_> = documents.into_iter().map(|doc| {
-                        store.save_document(&logger, &schema, &collection, doc)
-                    }).collect();
+                    let futs: Vec<_> = documents
+                        .into_iter()
+                        .map(|doc| store.save_document(&logger, &schema, &collection, doc))
+                        .collect();
 
                     join_all(futs).await.into_iter().collect::<Result<_, _>>()?;
                 }
-
             }
 
             store.flush(&logger).await?;
             Ok(())
-        }.boxed()
+        }
+        .boxed()
     }
 
     fn schemas(&self) -> &Vec<RwLock<Self::CacheSchema>> {
@@ -116,7 +127,12 @@ impl Cache for MemoryCache
         })
     }
 
-    fn set_schema(&mut self, logger: &Logger, schema: Schema, new_graphql_schema: &str) -> Result<(), Error> {
+    fn set_schema(
+        &mut self,
+        logger: &Logger,
+        schema: Schema,
+        new_graphql_schema: &str,
+    ) -> Result<(), Error> {
         let mut mem_schema = MemoryCacheSchema::new(schema, vec![]);
         mem_schema.migrate(&logger, new_graphql_schema)?;
         self.schemas.push(RwLock::new(mem_schema));

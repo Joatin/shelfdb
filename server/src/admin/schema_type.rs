@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use shelf_database::Schema;
 use uuid::Uuid;
-use chrono::{Utc, DateTime};
 
 #[derive(GraphQLObject)]
 #[graphql(
@@ -11,7 +11,7 @@ pub struct SchemaType {
     id: Uuid,
     name: String,
     description: Option<String>,
-    created_at: DateTime<Utc>
+    created_at: DateTime<Utc>,
 }
 
 impl From<&Schema> for SchemaType {

@@ -21,3 +21,5 @@ Cargo.lock
 .idea/
 
 .shelf_data/
+
+node_modules/

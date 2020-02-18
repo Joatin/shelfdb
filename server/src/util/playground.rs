@@ -1,6 +1,6 @@
-use hyper::{Response, Body, header, StatusCode};
-use std::convert::Infallible;
 use hyper::header::HeaderValue;
+use hyper::{header, Body, Response, StatusCode};
+use std::convert::Infallible;
 
 /// Takes care of rendering the playground graphql explorer
 ///
@@ -14,6 +14,8 @@ pub fn playground(graphql_endpoint: &str) -> Result<Response<Body>, Infallible> 
         header::CONTENT_TYPE,
         HeaderValue::from_static("text/html; charset=utf-8"),
     );
-    *resp.body_mut() = Body::from(juniper::http::playground::playground_source(graphql_endpoint));
+    *resp.body_mut() = Body::from(juniper::http::playground::playground_source(
+        graphql_endpoint,
+    ));
     Ok(resp)
 }

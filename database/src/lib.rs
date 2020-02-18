@@ -2,19 +2,21 @@
 #![deny(dead_code)]
 #![deny(unused_imports)]
 
+#[macro_use]
+extern crate slog;
+#[macro_use]
+extern crate serde_derive;
+#[macro_use]
+extern crate failure;
 
-#[macro_use] extern crate slog;
-#[macro_use] extern crate serde_derive;
-#[macro_use] extern crate failure;
-
-mod database;
-mod store;
 mod cache;
+mod database;
 mod model;
-pub(crate) mod util;
+mod store;
 pub mod test;
+pub(crate) mod util;
 
-pub use self::database::Database;
-pub use self::store::Store;
 pub use self::cache::*;
+pub use self::database::Database;
 pub use self::model::*;
+pub use self::store::Store;

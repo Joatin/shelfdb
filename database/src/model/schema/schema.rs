@@ -1,10 +1,10 @@
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use std::collections::HashMap;
-use graphql_parser::schema::Document;
-use graphql_parser::parse_schema;
-use crate::util::ExtractedData;
 use crate::util::extract_graphql_schema;
+use crate::util::ExtractedData;
+use chrono::{DateTime, Utc};
+use graphql_parser::parse_schema;
+use graphql_parser::schema::Document;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -13,7 +13,7 @@ pub struct Schema {
     pub name: String,
     pub description: Option<String>,
     pub created_at: DateTime<Utc>,
-    pub(crate) graphql_schemas: HashMap<u32, String>
+    pub(crate) graphql_schemas: HashMap<u32, String>,
 }
 
 impl Schema {
@@ -23,16 +23,19 @@ impl Schema {
             name: name.to_string(),
             description,
             created_at: Utc::now(),
-            graphql_schemas: HashMap::new()
+            graphql_schemas: HashMap::new(),
         }
     }
 
     pub fn definition(&self) -> Option<Document> {
-        self.current_migration_version().map(|version| {
-            self.graphql_schemas.get(&version).map(|raw| {
-                parse_schema(raw).expect("Schemas are always validated before they are added to the schema")
+        self.current_migration_version()
+            .map(|version| {
+                self.graphql_schemas.get(&version).map(|raw| {
+                    parse_schema(raw)
+                        .expect("Schemas are always validated before they are added to the schema")
+                })
             })
-        }).flatten()
+            .flatten()
     }
 
     pub fn types(&self) -> Option<ExtractedData> {

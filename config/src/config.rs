@@ -1,7 +1,7 @@
-use config::{Config as CConfig};
+use colored::*;
+use config::Config as CConfig;
 use failure::Error;
 use slog::Logger;
-use colored::*;
 use std::net::SocketAddr;
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
@@ -11,13 +11,12 @@ pub struct Config {
     pub client_server_port: u16,
     pub admin_server_port: u16,
     pub host: String,
-    pub log_level: String
+    pub log_level: String,
 }
 
 /// The configuration object for the Shelf database. This struct holds all configuration
 ///properties, and takes of loading them from the appropriate source
 impl Config {
-
     /// Loads the config, this both checks if there is a provided config file or if there are any environment variables providing configuration
     pub fn load(logger: &Logger) -> Result<Self, Error> {
         let mut config = CConfig::new();
@@ -29,11 +28,17 @@ impl Config {
             warn!(logger, "No config file found, you can add a shelf.yml, shelf.json or shelf.toml file. Using defaults for now...")
         }
 
-        config.merge(config::Environment::with_prefix("SHELF")).unwrap();
+        config
+            .merge(config::Environment::with_prefix("SHELF"))
+            .unwrap();
 
         let res: Config = config.try_into()?;
 
-        info!(logger, "Using data folder {}", format!("\"{}\"", &res.data_folder).yellow());
+        info!(
+            logger,
+            "Using data folder {}",
+            format!("\"{}\"", &res.data_folder).yellow()
+        );
         trace!(logger, "Entire configuration object was: {:?}", &res);
 
         if let Err(e) = res.admin_host() {
@@ -73,7 +78,6 @@ impl Config {
         let addr: SocketAddr = format!("{}:{}", self.host, self.client_server_port).parse()?;
         Ok(addr)
     }
-
 
     /// Gets the provided expected host name for the admin graphql endpoint
     ///
