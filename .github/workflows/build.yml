@@ -3,7 +3,7 @@ name: Build
 on: [push]
 
 jobs:
-  check:
+  fmt:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -14,7 +14,20 @@ jobs:
         override: true
     - name: Run fmt
       run: cargo +nightly fmt -- --check
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install latest nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
+    - name: Run clippy
+      run: cargo +nightly clippy
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
     - name: Run tests
       run: cargo test
-    - name: Run fmt
-      run: cargo +nightly cargo
