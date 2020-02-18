@@ -1,15 +1,13 @@
 use crate::context::Context;
 use juniper::{GraphQLType, DefaultScalarValue, Registry, Arguments, Executor, ExecutionResult, FieldError};
-use juniper::meta::MetaType;
+use juniper::meta::{MetaType};
 use shelf_database::{Schema as DbSchema, Store, Cache};
-use inflector::cases::camelcase::to_camel_case;
 use crate::client::connection::Connection;
-use crate::client::collection::Collection;
-use crate::client::node::Node;
 use failure::_core::marker::PhantomData;
 use shelf_database::CacheSchema;
-use uuid::Uuid;
 use std::sync::RwLockReadGuard;
+use crate::client::query_field::QueryField;
+use crate::client::node::Node;
 
 
 pub struct Query<C: Cache, S: Store> {
@@ -78,21 +76,16 @@ impl<'a, C: Cache, S: Store> GraphQLType for Query<C, S> {
     fn meta<'r>(info: &Self::TypeInfo, registry: &mut Registry<'r, DefaultScalarValue>) -> MetaType<'r, DefaultScalarValue>
         where DefaultScalarValue: 'r
     {
-        let mut fields = vec![
-            registry.field::<&Node<C, S>>("node", &()),
-            registry.field::<&Uuid>("schemaId", &()),
-            registry.field::<&String>("schemaName", &()),
-            registry.field::<&String>("schemaCreatedAt", &())
-        ];
-
-        if let Some(types) = info.types() {
-            for coll in types.collections {
-                fields.push(registry.field::<&i32>(&format!("{}Count", to_camel_case(&coll.name)), &()));
-                fields.push(registry.field::<&Connection<C, S>>(&format!("{}s", to_camel_case(&coll.name)), &(&format!("{}Connection", coll.name), &coll.name, info)));
-                fields.push(registry.field::<&Collection<C, S>>(&to_camel_case(&coll.name), &(&coll.name, info)));
-            }
-        }
-
+        let collections = match info.types() {
+            Some(data) => {
+                data.collections.iter().map(|i| {
+                    let fields = i.fields.iter().map(|f| f.name.to_string()).collect();
+                    (i.name.to_string(), fields)
+                }).collect()
+            },
+            None => vec![],
+        };
+        let fields = QueryField::fields::<C, S>(&info, registry, &collections);
         registry.build_object_type::<Query<C, S>>(&info, &fields).into_meta()
     }
 
@@ -111,31 +104,36 @@ impl<'a, C: Cache, S: Store> GraphQLType for Query<C, S> {
         // actually matches the one that you defined in `meta()` above.
         let context = executor.context();
 
-        match field_name {
-            "node" => executor.resolve(&(), &Node::new()),
-            "schemaId" => executor.resolve_with_ctx(&(), &info.id),
-            "schemaName" => executor.resolve_with_ctx(&(), &info.name),
-            "schemaCreatedAt" => executor.resolve_with_ctx(&(), &info.created_at),
-            _ => {
-                if let Some(types) = info.types() {
-                    if let Some(coll) = types.collections.iter().find(|i| field_name.starts_with(&to_camel_case(&i.name))) {
-                        let coll_name = to_camel_case(&coll.name);
-                        if field_name == format!("{}", coll_name) {
-                            self.resolve_collection(context, args, executor)
-                        } else if field_name == format!("{}s", coll_name) {
-                            self.resolve_collections(info, context, args, executor, &coll.name)
-                        } else if field_name == format!("{}Count", coll_name) {
-                            // executor.resolve_with_ctx(&(), &(collection.document_count() as i32))
-                            unimplemented!()
-                        } else {
-                            panic!("Field {} not found", field_name)
-                        }
-                    } else {
-                        panic!("Field {} not found", field_name)
-                    }
-                } else {
-                    panic!("Field {} not found", field_name)
-                }
+        match QueryField::from_str(field_name).unwrap() {
+            QueryField::Node => {
+                executor.resolve_with_ctx(&(), &Node::new())
+            },
+            QueryField::SchemaId => {
+                executor.resolve_with_ctx(&(), &info.id)
+            },
+            QueryField::SchemaName => {
+                executor.resolve_with_ctx(&(), &info.name)
+            },
+            QueryField::SchemaCreatedAt => {
+                executor.resolve_with_ctx(&(), &info.created_at)
+            },
+            QueryField::Document { .. } => {
+                self.resolve_collection(context, args, executor)
+            },
+            QueryField::Documents { collection_name } => {
+                self.resolve_collections(info, context, args, executor, &collection_name)
+            },
+            QueryField::FirstDocumentByField { collection_name: _, field_name: _ } => {
+                unimplemented!()
+            }
+            QueryField::FindDocumentsByField { collection_name: _, field_name: _ } => {
+                unimplemented!()
+            }
+            QueryField::FirstDocumentByFieldAndField { collection_name: _, field_name: _, second_field_name: _ } => {
+                unimplemented!()
+            }
+            QueryField::FindDocumentsByFieldAndField { collection_name: _, field_name: _, second_field_name: _ } => {
+                unimplemented!()
             }
         }
     }

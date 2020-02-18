@@ -24,3 +24,6 @@ graphql-parser = "0.2.3"
 
 shelf_config = { path = "../config" }
 shelf_database = { path = "../database" }
+
+[dev-dependencies]
+fnv = "1.0.6"

@@ -8,6 +8,7 @@ mod connection;
 mod edge;
 mod collection;
 mod node;
+mod query_field;
 
 pub use self::build_root_node_from_schemas::build_root_node_from_schemas;
 pub use self::schema::Schema;

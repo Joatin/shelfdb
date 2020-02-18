@@ -12,6 +12,7 @@ mod store;
 mod cache;
 mod model;
 pub(crate) mod util;
+pub mod test;
 
 pub use self::database::Database;
 pub use self::store::Store;

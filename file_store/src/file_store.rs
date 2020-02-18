@@ -22,6 +22,8 @@ use flate2::Compression;
 use std::io::{Write, Read};
 use flate2::read::GzDecoder;
 use colored::*;
+use futures::future::join_all;
+use tokio::task;
 
 pub struct FileStore {
     base_path: String,
@@ -117,10 +119,11 @@ impl Store for FileStore {
 
             if path.is_dir() {
                 let files: Vec<_> = path.read_dir().unwrap().collect();
-                for file in files {
+
+                let contents = join_all(files.into_iter().map(|file| async {
                     if let Ok(dir) = file {
-                        let name = dir.file_name();
-                        trace!(logger, "Reading file {}", name.to_str().unwrap().yellow());
+                        let name = dir.file_name().to_str().unwrap().to_string();
+                        trace!(logger, "Reading file {}", name.yellow());
                         let mut file = OpenOptions::new()
                             .read(true)
                             .open(path.join(name.clone()))
@@ -129,19 +132,30 @@ impl Store for FileStore {
                         let mut contents = vec![];
                         file.read_to_end(&mut contents).await?;
 
-                        let mut gz = GzDecoder::new(&contents[..]);
-                        let mut decoded = String::new();
-                        gz.read_to_string(&mut decoded).unwrap();
+                        let res = task::spawn_blocking(move || {
+                            let mut gz = GzDecoder::new(&contents[..]);
+                            let mut decoded = String::new();
+                            gz.read_to_string(&mut decoded).unwrap();
 
-                        let mut result = serde_json::from_str::<Vec<Document>>(&decoded)?;
+                            let mut result = serde_json::from_str::<Vec<Document>>(&decoded)?;
 
-                        if result.is_empty() {
-                            warn!(logger, "Weird, found file with no content"; "file_name" => name.to_str().unwrap());
+                            Result::<Vec<Document>, Error>::Ok(result)
+                        }).await??;
+
+                        if res.is_empty() {
+                            warn!(logger, "Weird, found file with no content"; "file_name" => &name);
                         }
+                        trace!(logger, "Found {} documents in file {}", res.len().to_string().yellow(), name.yellow());
 
-                        trace!(logger, "Found {} documents in file {}", result.len().to_string().yellow(), name.to_str().unwrap().yellow());
+                        Ok(res)
+                    } else {
+                        bail!("Could not read file");
+                    }
+                }).collect::<Vec<_>>()).await;
 
-                        documents.append(&mut result);
+                for content in contents {
+                    if let Ok(mut data) = content {
+                        documents.append(&mut data);
                     }
                 }
             }
