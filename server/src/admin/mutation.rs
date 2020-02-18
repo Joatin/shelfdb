@@ -22,7 +22,6 @@ impl<C: Cache, S: Store> Mutation<C, S> {
 #[juniper::object(Context = Context<C, S>)]
 impl<C: Cache, S: Store> Mutation<C, S> {
     fn set_schema(context: &Context<C, S>, input: SchemaInput) -> FieldResult<SchemaType> {
-        let context = context.clone();
         let mut db = context.db.write().unwrap();
         let schema = Schema::new(input.id, &input.name, input.description);
 

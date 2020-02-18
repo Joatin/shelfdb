@@ -31,3 +31,9 @@ jobs:
     - uses: actions/checkout@v2
     - name: Run tests
       run: cargo test
+  validate_lockfile:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run tests
+      run: yarn --frozen-lockfile
