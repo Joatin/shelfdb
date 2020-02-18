@@ -5,6 +5,8 @@
   The GraphQL database. Makes storing data easy!
 </p>
 
+![Build](https://github.com/Joatin/shelf/workflows/Build/badge.svg)
+
 ## About
 Shelf is a database written in rust and that uses GraphQL for it's api and migrations. Graphql makes it easy to 
 describe the data resources you want to fetch. Shelf expands that power to simple let ypu describe your data and then 
