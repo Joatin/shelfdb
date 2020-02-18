@@ -1,14 +1,14 @@
 module.exports = {
-  title: 'My Site',
-  tagline: 'The tagline of my site',
+  title: 'Shelf',
+  tagline: 'The GraphQL database. Makes storing data easy!',
   url: 'https://your-docusaurus-test-site.com',
   baseUrl: '/',
   favicon: 'img/favicon.ico',
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: 'Joatin', // Usually your GitHub org/user name.
+  projectName: 'shelf', // Usually your repo name.
   themeConfig: {
     navbar: {
-      title: 'My Site',
+      title: 'Shelf',
       logo: {
         alt: 'My Site Logo',
         src: 'img/logo.svg',
@@ -17,7 +17,7 @@ module.exports = {
         {to: 'docs/doc1', label: 'Docs', position: 'left'},
         {to: 'blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/facebook/docusaurus',
+          href: 'https://github.com/Joatin/shelf',
           label: 'GitHub',
           position: 'right',
         },
@@ -44,7 +44,7 @@ module.exports = {
           items: [
             {
               label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
+              href: 'https://stackoverflow.com/questions/tagged/shelfdb',
             },
             {
               label: 'Discord',
@@ -61,16 +61,16 @@ module.exports = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
+              href: 'https://github.com/facebook/shelfdb',
             },
             {
               label: 'Twitter',
-              href: 'https://twitter.com/docusaurus',
+              href: 'https://twitter.com/shelfdb',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © 2020 Joatin Granlund, Built with Docusaurus.`,
     },
   },
   presets: [
@@ -78,9 +78,9 @@ module.exports = {
       '@docusaurus/preset-classic',
       {
         docs: {
-          sidebarPath: require.resolve('./sidebars.js'),
+          sidebarPath: require.resolve('./sidebars.ts'),
           editUrl:
-            'https://github.com/facebook/docusaurus/edit/master/website/',
+            'https://github.com/Joatin/shelf/edit/master/docs/',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
