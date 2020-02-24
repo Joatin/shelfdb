@@ -7,7 +7,9 @@
       "docs"
     ]
   },
-  "scripts": {},
+  "scripts": {
+    "start": "cd docs && yarn start"
+  },
   "devDependencies": {
     "husky": "^4.2.3",
     "lint-staged": "^10.0.7",

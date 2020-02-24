@@ -1,7 +1,7 @@
 use crate::context::Context;
 use failure::_core::marker::PhantomData;
 use juniper::meta::MetaType;
-use juniper::{DefaultScalarValue, GraphQLType, Registry};
+use juniper::{DefaultScalarValue, GraphQLType, GraphQLTypeAsync, Registry};
 use shelf_database::{Cache, Store};
 use uuid::Uuid;
 
@@ -38,3 +38,5 @@ impl<C: Cache, S: Store> GraphQLType for Node<C, S> {
             .into_meta()
     }
 }
+
+impl<C: Cache, S: Store> GraphQLTypeAsync<DefaultScalarValue> for Node<C, S> {}

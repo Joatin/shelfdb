@@ -19,7 +19,7 @@ impl<C: Cache, S: Store> Mutation<C, S> {
     }
 }
 
-#[juniper::object(Context = Context<C, S>)]
+#[juniper::graphql_object(Context = Context<C, S>)]
 impl<C: Cache, S: Store> Mutation<C, S> {
     fn set_schema(context: &Context<C, S>, input: SchemaInput) -> FieldResult<SchemaType> {
         let mut db = context.db.write().unwrap();
@@ -33,18 +33,18 @@ impl<C: Cache, S: Store> Mutation<C, S> {
     }
 
     fn set_collection(
-        context: &Context<C, S>,
-        name: String,
-        schema_name: String,
+        _context: &Context<C, S>,
+        _name: String,
+        _schema_name: String,
     ) -> FieldResult<bool> {
         Ok(true)
     }
 
     fn set_document(
-        context: &Context<C, S>,
-        name: String,
-        collection_name: String,
-        schema_name: String,
+        _context: &Context<C, S>,
+        _name: String,
+        _collection_name: String,
+        _schema_name: String,
     ) -> FieldResult<bool> {
         Ok(true)
     }

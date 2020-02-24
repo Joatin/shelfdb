@@ -3,9 +3,11 @@ use crate::client::node::Node;
 use crate::client::query_field::QueryField;
 use crate::context::Context;
 use failure::_core::marker::PhantomData;
+use futures::FutureExt;
 use juniper::meta::MetaType;
 use juniper::{
-    Arguments, DefaultScalarValue, ExecutionResult, Executor, FieldError, GraphQLType, Registry,
+    Arguments, BoxFuture, DefaultScalarValue, ExecutionResult, Executor, FieldError, GraphQLType,
+    GraphQLTypeAsync, Registry,
 };
 use shelf_database::CacheSchema;
 use shelf_database::{Cache, Schema as DbSchema, Store};
@@ -112,47 +114,54 @@ impl<'a, C: Cache, S: Store> GraphQLType for Query<C, S> {
             .build_object_type::<Query<C, S>>(&info, &fields)
             .into_meta()
     }
+}
 
-    fn resolve_field(
-        &self,
-        info: &Self::TypeInfo,
-        field_name: &str,
-        args: &Arguments,
-        executor: &Executor<Self::Context>,
-    ) -> ExecutionResult {
-        // Next, we need to match the queried field name. All arms of this
-        // match statement return `ExecutionResult`, which makes it hard to
-        // statically verify that the type you pass on to `executor.resolve*`
-        // actually matches the one that you defined in `meta()` above.
-        let context = executor.context();
+impl<C: Cache, S: Store> GraphQLTypeAsync<DefaultScalarValue> for Query<C, S> {
+    fn resolve_field_async<'a>(
+        &'a self,
+        info: &'a Self::TypeInfo,
+        field_name: &'a str,
+        arguments: &'a Arguments<DefaultScalarValue>,
+        executor: &'a Executor<Self::Context, DefaultScalarValue>,
+    ) -> BoxFuture<'a, ExecutionResult<DefaultScalarValue>> {
+        async move {
+            // Next, we need to match the queried field name. All arms of this
+            // match statement return `ExecutionResult`, which makes it hard to
+            // statically verify that the type you pass on to `executor.resolve*`
+            // actually matches the one that you defined in `meta()` above.
+            let context = executor.context();
 
-        match QueryField::from_str(field_name).unwrap() {
-            QueryField::Node => executor.resolve_with_ctx(&(), &Node::new()),
-            QueryField::SchemaId => executor.resolve_with_ctx(&(), &info.id),
-            QueryField::SchemaName => executor.resolve_with_ctx(&(), &info.name),
-            QueryField::SchemaCreatedAt => executor.resolve_with_ctx(&(), &info.created_at),
-            QueryField::Document { .. } => self.resolve_collection(context, args, executor),
-            QueryField::Documents { collection_name } => {
-                self.resolve_collections(info, context, args, executor, &collection_name)
+            match QueryField::from_str(field_name).unwrap() {
+                QueryField::Node => executor.resolve_with_ctx(&(), &Node::new()),
+                QueryField::SchemaId => executor.resolve_with_ctx(&(), &info.id),
+                QueryField::SchemaName => executor.resolve_with_ctx(&(), &info.name),
+                QueryField::SchemaCreatedAt => executor.resolve_with_ctx(&(), &info.created_at),
+                QueryField::Document { .. } => {
+                    self.resolve_collection(context, arguments, executor)
+                }
+                QueryField::Documents { collection_name } => {
+                    self.resolve_collections(info, context, arguments, executor, &collection_name)
+                }
+                QueryField::FirstDocumentByField {
+                    collection_name: _,
+                    field_name: _,
+                } => unimplemented!(),
+                QueryField::FindDocumentsByField {
+                    collection_name: _,
+                    field_name: _,
+                } => unimplemented!(),
+                QueryField::FirstDocumentByFieldAndField {
+                    collection_name: _,
+                    field_name: _,
+                    second_field_name: _,
+                } => unimplemented!(),
+                QueryField::FindDocumentsByFieldAndField {
+                    collection_name: _,
+                    field_name: _,
+                    second_field_name: _,
+                } => unimplemented!(),
             }
-            QueryField::FirstDocumentByField {
-                collection_name: _,
-                field_name: _,
-            } => unimplemented!(),
-            QueryField::FindDocumentsByField {
-                collection_name: _,
-                field_name: _,
-            } => unimplemented!(),
-            QueryField::FirstDocumentByFieldAndField {
-                collection_name: _,
-                field_name: _,
-                second_field_name: _,
-            } => unimplemented!(),
-            QueryField::FindDocumentsByFieldAndField {
-                collection_name: _,
-                field_name: _,
-                second_field_name: _,
-            } => unimplemented!(),
         }
+        .boxed()
     }
 }

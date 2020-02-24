@@ -3,16 +3,24 @@ use hyper::body::to_bytes;
 use hyper::header::HeaderValue;
 use hyper::{header, Body, Request, Response, StatusCode};
 use juniper::http::GraphQLRequest;
-use juniper::RootNode;
-use juniper::{DefaultScalarValue, GraphQLType};
+use juniper::DefaultScalarValue;
+use juniper::{GraphQLTypeAsync, RootNode};
 use std::convert::Infallible;
 use std::sync::Arc;
 
-pub async fn graphql_post<Q: GraphQLType<Context = Ctxt>, M: GraphQLType<Context = Ctxt>, Ctxt>(
+pub async fn graphql_post<
+    Q: GraphQLTypeAsync<DefaultScalarValue, Context = Ctxt>,
+    M: GraphQLTypeAsync<DefaultScalarValue, Context = Ctxt>,
+    Ctxt: Send + Sync,
+>(
     root_node: Arc<RootNode<'_, Q, M>>,
     context: Ctxt,
     req: Request<Body>,
-) -> Result<Response<Body>, Infallible> {
+) -> Result<Response<Body>, Infallible>
+where
+    <Q as juniper::GraphQLType>::TypeInfo: Send + Sync,
+    <M as juniper::GraphQLType>::TypeInfo: Send + Sync,
+{
     match to_bytes(req.into_body()).await {
         Ok(body) => match serde_json::from_slice::<GraphQLRequest<DefaultScalarValue>>(&body) {
             Ok(request) => {

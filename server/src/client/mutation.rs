@@ -16,7 +16,7 @@ impl<C: Cache, S: Store> Mutation<C, S> {
     }
 }
 
-#[juniper::object(Context = Context<C, S>)]
+#[juniper::graphql_object(Context = Context<C, S>)]
 impl<C: Cache, S: Store> Mutation<C, S> {
     fn id() -> bool {
         true

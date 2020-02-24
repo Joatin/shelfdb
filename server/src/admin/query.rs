@@ -19,7 +19,7 @@ impl<C: Cache, S: Store> Query<C, S> {
     }
 }
 
-#[juniper::object(Context = Context<C, S>)]
+#[juniper::graphql_object(Context = Context<C, S>)]
 impl<C: Cache, S: Store> Query<C, S> {
     #[graphql(description = "Returns the current version of this API")]
     fn api_version() -> FieldResult<String> {

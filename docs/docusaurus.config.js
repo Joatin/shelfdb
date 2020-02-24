@@ -9,10 +9,6 @@ module.exports = {
   themeConfig: {
     navbar: {
       title: 'Shelf',
-      logo: {
-        alt: 'Shelf Logo',
-        src: 'img/logo.svg',
-      },
       links: [
         {to: 'docs/doc1', label: 'Docs', position: 'left'},
         {to: 'blog', label: 'Blog', position: 'left'},
