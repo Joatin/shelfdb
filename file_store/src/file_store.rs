@@ -37,6 +37,7 @@ use std::{
     path::Path,
     pin::Pin,
     str::FromStr,
+    sync::Arc,
 };
 use tokio::{
     fs::{
@@ -52,7 +53,7 @@ use tokio::{
 pub struct FileStore {
     base_path: String,
     collections: Mutex<HashMap<String, Vec<Collection>>>,
-    documents: Mutex<HashMap<String, HashMap<String, Vec<Document>>>>,
+    documents: Mutex<HashMap<String, HashMap<String, Vec<Arc<Document>>>>>,
 }
 
 impl FileStore {
@@ -398,7 +399,7 @@ impl Store for FileStore {
         _logger: &'a Logger,
         schema: &'a Schema,
         collection: &'a Collection,
-        document: Document,
+        document: Arc<Document>,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         async move {
             let mut documents = self.documents.lock().await;

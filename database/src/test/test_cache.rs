@@ -4,6 +4,7 @@ use crate::{
     CacheSchema,
     Collection,
     Document,
+    DocumentResult,
     Schema,
     Store,
 };
@@ -16,6 +17,7 @@ use slog::Logger;
 use std::{
     future::Future,
     pin::Pin,
+    sync::Arc,
 };
 use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
@@ -123,11 +125,11 @@ impl CacheCollection for TestCacheCollection {
         unimplemented!()
     }
 
-    fn documents(&self) -> BoxStream<Document> {
+    fn documents<'a>(&'a self) -> BoxFuture<'a, Box<dyn DocumentResult + 'a>> {
         unimplemented!()
     }
 
-    fn document(&self, _id: Uuid) -> BoxFuture<Option<Document>> {
+    fn document(&self, _id: Uuid) -> BoxFuture<Option<Arc<Document>>> {
         unimplemented!()
     }
 
@@ -135,11 +137,15 @@ impl CacheCollection for TestCacheCollection {
         &self,
         _field_name: &str,
         _field_value: &str,
-    ) -> BoxFuture<Option<Document>> {
+    ) -> BoxFuture<Option<Arc<Document>>> {
         unimplemented!()
     }
 
-    fn find_by_field(&self, _field_name: &str, _field_value: &str) -> BoxStream<Document> {
+    fn find_by_field<'a>(
+        &'a self,
+        _field_name: &'a str,
+        _field_value: &'a str,
+    ) -> BoxFuture<'a, Box<dyn DocumentResult + 'a>> {
         unimplemented!()
     }
 }

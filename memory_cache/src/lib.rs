@@ -8,7 +8,8 @@ extern crate slog;
 extern crate failure;
 
 mod memory_cache;
-mod memory_cache_collection;
+pub mod memory_cache_collection;
 mod memory_cache_schema;
+mod memory_document_result;
 
 pub use self::memory_cache::MemoryCache;

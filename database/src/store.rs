@@ -6,7 +6,10 @@ use crate::{
 use failure::Error;
 use futures::Future;
 use slog::Logger;
-use std::pin::Pin;
+use std::{
+    pin::Pin,
+    sync::Arc,
+};
 
 pub trait Store: Sync + Send + 'static {
     fn get_schemas(
@@ -40,7 +43,7 @@ pub trait Store: Sync + Send + 'static {
         logger: &'a Logger,
         schema: &'a Schema,
         collection: &'a Collection,
-        document: Document,
+        document: Arc<Document>,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>>;
     fn flush<'a>(
         &'a self,

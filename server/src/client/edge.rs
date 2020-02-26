@@ -17,6 +17,7 @@ use shelf_database::{
     Schema as DbSchema,
     Store,
 };
+use std::sync::Arc;
 
 pub struct Edge<C: Cache, S: Store> {
     node: Collection<C, S>,
@@ -24,7 +25,7 @@ pub struct Edge<C: Cache, S: Store> {
 }
 
 impl<C: Cache, S: Store> Edge<C, S> {
-    pub async fn new(doc: Document) -> Edge<C, S> {
+    pub async fn new(doc: Arc<Document>) -> Edge<C, S> {
         let cursor = doc.id.to_string();
         Self {
             node: Collection::new(doc),

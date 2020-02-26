@@ -9,6 +9,7 @@ use slog::Logger;
 use std::{
     future::Future,
     pin::Pin,
+    sync::Arc,
 };
 
 pub struct TestStore;
@@ -60,7 +61,7 @@ impl Store for TestStore {
         _logger: &'a Logger,
         _schema: &'a Schema,
         _collection: &'a Collection,
-        _document: Document,
+        _document: Arc<Document>,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
         unimplemented!()
     }

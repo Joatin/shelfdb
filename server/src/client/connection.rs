@@ -37,9 +37,14 @@ pub struct Connection<C: Cache, S: Store> {
 
 impl<C: Cache, S: Store> Connection<C, S> {
     pub async fn new<Ca: CacheCollection>(cache: Ca) -> Connection<C, S> {
-        let docs = cache.documents();
+        let edges: Vec<Edge<C, S>> = {
+            let docs = cache.documents().await;
+            let stream = docs.stream();
+            stream.take(100).then(Edge::new).collect().await
+        };
 
-        let edges = docs.take(100).then(Edge::new).collect().await;
+        // let edges: Vec<Edge<C, S>> = ;
+        // let total = docs.total();
 
         Self {
             edges,
@@ -50,7 +55,7 @@ impl<C: Cache, S: Store> Connection<C, S> {
                 end_cursor: "".to_string(),
             },
             // TODO: We need to get total count without exhausting the stream
-            total_count: 0,
+            total_count: 0 as i32,
         }
     }
 }

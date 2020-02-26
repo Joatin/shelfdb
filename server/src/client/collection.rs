@@ -25,17 +25,18 @@ use shelf_database::{
 use std::{
     borrow::Cow,
     marker::PhantomData,
+    sync::Arc,
 };
 use uuid::Uuid;
 
 pub struct Collection<C: Cache, S: Store> {
-    document: Document,
+    document: Arc<Document>,
     phantom_store: PhantomData<S>,
     phantom_cache: PhantomData<C>,
 }
 
 impl<C: Cache, S: Store> Collection<C, S> {
-    pub fn new(document: Document) -> Self {
+    pub fn new(document: Arc<Document>) -> Self {
         Self {
             document,
             phantom_store: PhantomData,

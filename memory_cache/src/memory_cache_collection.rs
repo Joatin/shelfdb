@@ -1,7 +1,6 @@
+use crate::memory_document_result::MemoryDocumentResult;
 use futures::{
     future::BoxFuture,
-    stream,
-    stream::BoxStream,
     FutureExt,
     StreamExt,
 };
@@ -9,6 +8,7 @@ use shelf_database::{
     CacheCollection,
     Collection,
     Document,
+    DocumentResult,
 };
 use std::{
     collections::BTreeMap,
@@ -38,12 +38,14 @@ impl MemoryCacheCollection {
         }
     }
 
-    pub async fn get_size(&self) -> usize {
+    pub(crate) async fn get_size(&self) -> usize {
         let mut size =
             self.id_index.read().await.len() * (mem::size_of::<Uuid>() + mem::size_of::<usize>());
 
         size = self
             .documents()
+            .await
+            .stream()
             .fold(size, |acc, val| async move { (acc + val.get_size()) + 0 })
             .await;
 
@@ -83,7 +85,7 @@ impl CacheCollection for MemoryCacheCollection {
         //            Err(key) => {
         //                // The document does not exist, we just need to insert
         // it                self.id_index.insert(key, (document.id,
-        // self.documents.len()));                
+        // self.documents.len()));
         // self.documents.push(RwLock::new(document));
         //
         //            },
@@ -102,23 +104,20 @@ impl CacheCollection for MemoryCacheCollection {
         .boxed()
     }
 
-    fn documents(&self) -> BoxStream<Document> {
-        stream::once(self.id_index.read())
-            .map(|i| {
-                println!("SIZE: {}", i.len());
-                stream::iter(i.clone())
-            })
-            .flatten()
-            .then(|(_key, val)| async move { Document::clone(&val) })
-            .boxed()
+    fn documents<'a>(&'a self) -> BoxFuture<'a, Box<dyn DocumentResult + 'a>> {
+        async move {
+            let lock = self.id_index.read().await;
+            Box::new(MemoryDocumentResult::new(lock)) as Box<dyn DocumentResult>
+        }
+        .boxed()
     }
 
-    fn document(&self, id: Uuid) -> BoxFuture<Option<Document>> {
+    fn document(&self, id: Uuid) -> BoxFuture<Option<Arc<Document>>> {
         async move {
             let index = self.id_index.read().await;
             match index.get(&id) {
                 None => None,
-                Some(val) => Some(Document::clone(&val)),
+                Some(val) => Some(Arc::clone(&val)),
             }
         }
         .boxed()
@@ -128,27 +127,26 @@ impl CacheCollection for MemoryCacheCollection {
         &'a self,
         field_name: &'a str,
         field_value: &'a str,
-    ) -> BoxFuture<'a, Option<Document>> {
-        let stream = self.find_by_field(field_name, field_value);
-        stream.into_future().map(|(next, _)| next).boxed()
+    ) -> BoxFuture<'a, Option<Arc<Document>>> {
+        async move {
+            let docs = self.find_by_field(field_name, field_value).await;
+            let stream = docs.stream();
+            stream.into_future().map(|(next, _)| next).await
+        }
+        .boxed()
     }
 
     // TODO: Might be good to do some index checking ;)
     fn find_by_field<'a>(
         &'a self,
-        field_name: &'a str,
-        field_value: &'a str,
-    ) -> BoxStream<'a, Document> {
-        self.documents()
-            .filter(move |i| {
-                if let Some(val) = i.fields.get(field_name) {
-                    if val == field_value {
-                        return futures::future::ready(true);
-                    }
-                }
-                futures::future::ready(false)
-            })
-            .boxed()
+        _field_name: &'a str,
+        _field_value: &'a str,
+    ) -> BoxFuture<'a, Box<dyn DocumentResult + 'a>> {
+        async move {
+            let lock = self.id_index.read().await;
+            Box::new(MemoryDocumentResult::new(lock)) as Box<dyn DocumentResult>
+        }
+        .boxed()
     }
 }
 

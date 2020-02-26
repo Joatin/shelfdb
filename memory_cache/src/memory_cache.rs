@@ -122,7 +122,7 @@ where
                                 error!(logger, "Failed to save collection"; "error" => format!("{}", err));
                             }
 
-                            collection.documents().for_each_concurrent(None, |document| async {
+                            collection.documents().await.stream().for_each_concurrent(None, |document| async {
                                 if let Err(err) = store.save_document(&logger, &inner_schema, &inner_collection, document).await {
                                     error!(logger, "Failed to save document"; "error" => format!("{}", err));
                                 }
