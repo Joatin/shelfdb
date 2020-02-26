@@ -1,6 +1,13 @@
 use colored::*;
 use failure::Error;
-use graphql_parser::schema::{Definition, Directive, Document, Field, Type, TypeDefinition};
+use graphql_parser::schema::{
+    Definition,
+    Directive,
+    Document,
+    Field,
+    Type,
+    TypeDefinition,
+};
 use slog::Logger;
 
 pub const RESERVED_TYPE_NAMES: &[&str] = &["Query", "Mutation"];
@@ -88,10 +95,15 @@ fn has_id(fields: &[Field]) -> bool {
 
 #[cfg(test)]
 mod test {
-    use crate::util::{validate_graphql_schema_correctness, RESERVED_TYPE_NAMES};
+    use crate::util::{
+        validate_graphql_schema_correctness,
+        RESERVED_TYPE_NAMES,
+    };
     use graphql_parser::parse_schema;
-    use sloggers::null::NullLoggerBuilder;
-    use sloggers::Build;
+    use sloggers::{
+        null::NullLoggerBuilder,
+        Build,
+    };
 
     #[test]
     fn it_throw_if_provided_schema_with_schema_definition() {

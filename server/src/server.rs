@@ -1,22 +1,48 @@
-use crate::admin::{Mutation as AdminMutation, Query as AdminQuery, Schema as AdminSchema};
-use crate::client::build_root_node_from_schemas;
-use crate::client::Schema as ClientSchema;
-use crate::context::Context;
-use crate::util::graphql_get;
-use crate::util::graphql_post;
-use crate::util::playground;
+use crate::{
+    admin::{
+        Mutation as AdminMutation,
+        Query as AdminQuery,
+        Schema as AdminSchema,
+    },
+    client::{
+        build_root_node_from_schemas,
+        Schema as ClientSchema,
+    },
+    context::Context,
+    util::{
+        graphql_get,
+        graphql_post,
+        playground,
+    },
+};
 use colored::*;
 use failure::Error;
 use futures::channel::oneshot::channel;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Method, Request, Response, Server as HyperServer};
+use hyper::{
+    service::{
+        make_service_fn,
+        service_fn,
+    },
+    Body,
+    Method,
+    Request,
+    Response,
+    Server as HyperServer,
+};
 use shelf_config::Config;
-use shelf_database::{Cache, Database, Store};
+use shelf_database::{
+    Cache,
+    Database,
+    Store,
+};
 use slog::Logger;
-use std::collections::HashMap;
-use std::convert::Infallible;
-use std::sync::{Arc, RwLock};
-use std::time::Instant;
+use std::{
+    collections::HashMap,
+    convert::Infallible,
+    sync::Arc,
+    time::Instant,
+};
+use tokio::sync::RwLock;
 
 pub struct Server {
     handle: Box<dyn FnOnce()>,
@@ -32,7 +58,7 @@ impl Server {
         let stop_logger = logger.clone();
         let config = config.clone();
 
-        let db = Arc::new(RwLock::new(db));
+        let db = Arc::new(db);
 
         let (tx, rx) = channel::<()>();
 
@@ -42,7 +68,7 @@ impl Server {
             let other_logger = logger.clone();
 
             let admin_root_node = Self::build_admin_root_node();
-            let client_root_nodes = Self::build_client_root_nodes(&db);
+            let client_root_nodes = Self::build_client_root_nodes(&db).await;
 
             let db = Arc::clone(&db);
 
@@ -52,9 +78,8 @@ impl Server {
                 let context = Context::<C, S>::new(&other_logger, Arc::clone(&db));
                 async move {
                     Ok::<_, Infallible>(service_fn(move |r| {
-                        let lock = client_root_nodes.read().unwrap();
                         Self::map_route(
-                            lock.clone(),
+                            client_root_nodes.clone(),
                             Arc::clone(&admin_root_node),
                             context.new_request(),
                             r,
@@ -100,28 +125,21 @@ impl Server {
         Arc::new(AdminSchema::new(AdminQuery::new(), AdminMutation::new()))
     }
 
-    fn build_client_root_nodes<C: Cache, S: Store>(
-        db: &Arc<RwLock<Database<C, S>>>,
+    async fn build_client_root_nodes<C: Cache, S: Store>(
+        db: &Arc<Database<C, S>>,
     ) -> Arc<RwLock<HashMap<String, Arc<ClientSchema<'static, C, S>>>>> {
-        let other_db2 = Arc::clone(&db);
-        let nodes = {
-            let lock = other_db2.read().unwrap();
-            build_root_node_from_schemas(lock.schemas())
-        };
+        let db = Arc::clone(&db);
+        let nodes = { build_root_node_from_schemas(db.schemas()).await };
 
         let rw_nodes = Arc::new(RwLock::new(nodes));
         let root_nodes = Arc::clone(&rw_nodes);
-        let other_db = Arc::clone(&db);
+        let db = Arc::clone(&db);
 
         tokio::spawn(async move {
-            let mut recv = {
-                let lock = other_db.read().unwrap();
-                lock.on_schema_updates()
-            };
+            let mut recv = { db.on_schema_updates() };
             while let Ok(_) = recv.recv().await {
-                let mut lock = root_nodes.write().unwrap();
-                let db_lock = other_db.read().unwrap();
-                *lock = build_root_node_from_schemas(db_lock.schemas());
+                let mut lock = root_nodes.write().await;
+                *lock = build_root_node_from_schemas(db.schemas()).await;
             }
         });
 
@@ -129,11 +147,13 @@ impl Server {
     }
 
     async fn map_route<C: Cache, S: Store>(
-        client_root_nodes: HashMap<String, Arc<ClientSchema<'_, C, S>>>,
+        client_root_nodes: Arc<RwLock<HashMap<String, Arc<ClientSchema<'_, C, S>>>>>,
         admin_root_node: Arc<AdminSchema<C, S>>,
         context: Context<C, S>,
         req: Request<Body>,
     ) -> Result<Response<Body>, Infallible> {
+        let client_root_nodes = client_root_nodes.read().await;
+
         let start_time = Instant::now();
 
         let logger = context.logger.clone();

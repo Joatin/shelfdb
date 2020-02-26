@@ -1,4 +1,8 @@
-use crate::{Collection, Document, Schema};
+use crate::{
+    Collection,
+    Document,
+    Schema,
+};
 use failure::Error;
 use futures::Future;
 use slog::Logger;

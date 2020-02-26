@@ -1,23 +1,27 @@
-use crate::{Collection, Document};
-use std::ops::Deref;
-use std::sync::RwLock;
+use crate::{
+    Collection,
+    Document,
+};
+use futures::{
+    future::BoxFuture,
+    stream::BoxStream,
+};
 use uuid::Uuid;
 
-pub trait CacheCollection: 'static + Send + Sync {
-    fn set_document(&mut self, document: Document);
-    fn inner_collection(&self) -> &Collection;
-    fn inner_collection_mut(&mut self) -> &mut Collection;
-    fn documents(&self) -> &[RwLock<Document>];
-    fn document(&self, id: Uuid) -> Option<&RwLock<Document>>;
-    fn find_first_by_field(&self, field_name: &str, field_value: &str)
-        -> Option<&RwLock<Document>>;
-    fn find_by_field(&self, field_name: &str, field_value: &str) -> Vec<&RwLock<Document>>;
-}
-
-impl Deref for dyn CacheCollection {
-    type Target = Collection;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner_collection()
-    }
+pub trait CacheCollection: 'static + Send + Sync + Clone {
+    fn set_document(&self, document: Document) -> BoxFuture<()>;
+    fn inner_collection(&self) -> BoxFuture<Collection>;
+    fn set_collection(&self, collection: Collection) -> BoxFuture<()>;
+    fn documents(&self) -> BoxStream<Document>;
+    fn document(&self, id: Uuid) -> BoxFuture<Option<Document>>;
+    fn find_first_by_field<'a>(
+        &'a self,
+        field_name: &'a str,
+        field_value: &'a str,
+    ) -> BoxFuture<'a, Option<Document>>;
+    fn find_by_field<'a>(
+        &'a self,
+        field_name: &'a str,
+        field_value: &'a str,
+    ) -> BoxStream<'a, Document>;
 }

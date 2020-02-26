@@ -14,10 +14,12 @@ pub struct Config {
     pub log_level: String,
 }
 
-/// The configuration object for the Shelf database. This struct holds all configuration
-///properties, and takes of loading them from the appropriate source
+/// The configuration object for the Shelf database. This struct holds all
+/// configuration properties, and takes of loading them from the appropriate
+/// source
 impl Config {
-    /// Loads the config, this both checks if there is a provided config file or if there are any environment variables providing configuration
+    /// Loads the config, this both checks if there is a provided config file or
+    /// if there are any environment variables providing configuration
     pub fn load(logger: &Logger) -> Result<Self, Error> {
         let mut config = CConfig::new();
 

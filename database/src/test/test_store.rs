@@ -1,8 +1,15 @@
-use crate::{Collection, Document, Schema, Store};
+use crate::{
+    Collection,
+    Document,
+    Schema,
+    Store,
+};
 use failure::Error;
 use slog::Logger;
-use std::future::Future;
-use std::pin::Pin;
+use std::{
+    future::Future,
+    pin::Pin,
+};
 
 pub struct TestStore;
 

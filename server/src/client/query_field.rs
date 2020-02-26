@@ -1,13 +1,32 @@
-use crate::client::collection::Collection;
-use crate::client::connection::Connection;
-use crate::client::node::Node;
-use chrono::{DateTime, Utc};
+use crate::client::{
+    collection::Collection,
+    connection::Connection,
+    node::Node,
+};
+use chrono::{
+    DateTime,
+    Utc,
+};
 use failure::Error;
-use inflector::cases::camelcase::to_camel_case;
-use inflector::cases::classcase::to_class_case;
-use juniper::meta::{Argument, DeprecationStatus, Field};
-use juniper::{DefaultScalarValue, InputValue, Registry};
-use shelf_database::{Cache, Schema as DbSchema, Store};
+use inflector::cases::{
+    camelcase::to_camel_case,
+    classcase::to_class_case,
+};
+use juniper::{
+    meta::{
+        Argument,
+        DeprecationStatus,
+        Field,
+    },
+    DefaultScalarValue,
+    InputValue,
+    Registry,
+};
+use shelf_database::{
+    Cache,
+    Schema as DbSchema,
+    Store,
+};
 use uuid::Uuid;
 
 pub enum QueryField {
@@ -42,8 +61,35 @@ pub enum QueryField {
 }
 
 impl QueryField {
-    pub fn from_str(_field_name: &str) -> Result<QueryField, Error> {
-        Ok(QueryField::Node)
+    pub fn from_str(
+        field_name: &str,
+        collections: &[(String, Vec<String>)],
+    ) -> Result<QueryField, Error> {
+        match field_name {
+            "node" => Ok(QueryField::Node),
+            "schemaId" => Ok(QueryField::SchemaId),
+            "schemaName" => Ok(QueryField::SchemaName),
+            "schemaCreatedAt" => Ok(QueryField::SchemaCreatedAt),
+            _ => {
+                if let Some((name, _)) = collections
+                    .iter()
+                    .find(|(name, _fields)| field_name == to_camel_case(name))
+                {
+                    Ok(QueryField::Document {
+                        collection_name: name.to_string(),
+                    })
+                } else if let Some((name, _)) = collections
+                    .iter()
+                    .find(|(name, _fields)| field_name == format!("{}s", to_camel_case(name)))
+                {
+                    Ok(QueryField::Documents {
+                        collection_name: name.to_string(),
+                    })
+                } else {
+                    bail!("Unknown field")
+                }
+            }
+        }
     }
 
     pub fn fields<'r, C: Cache, S: Store>(
@@ -118,9 +164,12 @@ impl QueryField {
         fields
     }
 
-    // fields.push(registry.field::<&i32>(&format!("{}Count", to_camel_case(&coll.name)), &()));
-    // fields.push(registry.field::<&Connection<C, S>>(&format!("{}s", to_camel_case(&coll.name)), &(&format!("{}Connection", coll.name), &coll.name, info)));
-    // fields.push(registry.field::<&Collection<C, S>>(&to_camel_case(&coll.name), &(&coll.name, info)));
+    // fields.push(registry.field::<&i32>(&format!("{}Count",
+    // to_camel_case(&coll.name)), &())); fields.push(registry.field::<&
+    // Connection<C, S>>(&format!("{}s", to_camel_case(&coll.name)),
+    // &(&format!("{}Connection", coll.name), &coll.name, info)));
+    // fields.push(registry.field::<&Collection<C, S>>(&to_camel_case(&coll.name),
+    // &(&coll.name, info)));
 
     pub fn into_field<'r, C: Cache, S: Store>(
         self,
@@ -183,7 +232,7 @@ impl QueryField {
                             default_value: None
                         }
                     ]),
-                    field_type: registry.get_type::<Option<Collection<C, S>>>(&(collection_name.as_str(), info)),
+                    field_type: registry.get_type::<Option<Collection<C, S>>>(&(collection_name.to_string(), info.clone())),
                     deprecation_status: DeprecationStatus::Current
                 }
             },
@@ -211,7 +260,7 @@ impl QueryField {
                             default_value: None
                         }
                     ]),
-                    field_type: registry.get_type::<Connection<C, S>>(&(&format!("{}Connection", collection_name), collection_name.as_str(), info)),
+                    field_type: registry.get_type::<Connection<C, S>>(&(format!("{}Connection", collection_name), collection_name, info.clone())),
                     deprecation_status: DeprecationStatus::Current
                 }
             },
@@ -227,7 +276,7 @@ impl QueryField {
                             default_value: None
                         }
                     ]),
-                    field_type: registry.get_type::<Option<Collection<C, S>>>(&(collection_name.as_str(), info)),
+                    field_type: registry.get_type::<Option<Collection<C, S>>>(&(collection_name, info.clone())),
                     deprecation_status: DeprecationStatus::Current
                 }
             },
@@ -261,7 +310,7 @@ impl QueryField {
                             default_value: None
                         }
                     ]),
-                    field_type: registry.get_type::<Connection<C, S>>(&(&format!("{}Connection", collection_name), collection_name.as_str(), info)),
+                    field_type: registry.get_type::<Connection<C, S>>(&(format!("{}Connection", collection_name), collection_name, info.clone())),
                     deprecation_status: DeprecationStatus::Current
                 }
             },
@@ -283,7 +332,7 @@ impl QueryField {
                             default_value: None
                         }
                     ]),
-                    field_type: registry.get_type::<Option<Collection<C, S>>>(&(collection_name.as_str(), info)),
+                    field_type: registry.get_type::<Option<Collection<C, S>>>(&(collection_name, info.clone())),
                     deprecation_status: DeprecationStatus::Current
                 }
             },
@@ -323,7 +372,7 @@ impl QueryField {
                             default_value: None
                         }
                     ]),
-                    field_type: registry.get_type::<Connection<C, S>>(&(&format!("{}Connection", collection_name), collection_name.as_str(), info)),
+                    field_type: registry.get_type::<Connection<C, S>>(&(format!("{}Connection", collection_name), collection_name, info.clone())),
                     deprecation_status: DeprecationStatus::Current
                 }
             },
@@ -334,11 +383,21 @@ impl QueryField {
 #[cfg(test)]
 mod test {
     use crate::client::query_field::QueryField;
-    use fnv::{FnvBuildHasher, FnvHashMap};
-    use juniper::{DefaultScalarValue, Registry};
-    use shelf_database::test::TestCache;
-    use shelf_database::test::TestStore;
-    use shelf_database::Schema as DbSchema;
+    use fnv::{
+        FnvBuildHasher,
+        FnvHashMap,
+    };
+    use juniper::{
+        DefaultScalarValue,
+        Registry,
+    };
+    use shelf_database::{
+        test::{
+            TestCache,
+            TestStore,
+        },
+        Schema as DbSchema,
+    };
     use uuid::Uuid;
 
     fn registry<'r>() -> Registry<'r, DefaultScalarValue> {

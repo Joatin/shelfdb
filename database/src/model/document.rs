@@ -1,6 +1,8 @@
 use serde_json::Value;
-use std::collections::HashMap;
-use std::mem;
+use std::{
+    collections::HashMap,
+    mem,
+};
 use uuid::Uuid;
 
 #[derive(Clone, Deserialize, Serialize, Debug)]

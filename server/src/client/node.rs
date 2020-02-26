@@ -1,8 +1,16 @@
 use crate::context::Context;
 use failure::_core::marker::PhantomData;
-use juniper::meta::MetaType;
-use juniper::{DefaultScalarValue, GraphQLType, GraphQLTypeAsync, Registry};
-use shelf_database::{Cache, Store};
+use juniper::{
+    meta::MetaType,
+    DefaultScalarValue,
+    GraphQLType,
+    GraphQLTypeAsync,
+    Registry,
+};
+use shelf_database::{
+    Cache,
+    Store,
+};
 use uuid::Uuid;
 
 pub struct Node<C: Cache, S: Store> {

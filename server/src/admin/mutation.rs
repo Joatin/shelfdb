@@ -1,8 +1,16 @@
-use crate::admin::schema_input::SchemaInput;
-use crate::admin::schema_type::SchemaType;
-use crate::context::Context;
+use crate::{
+    admin::{
+        schema_input::SchemaInput,
+        schema_type::SchemaType,
+    },
+    context::Context,
+};
 use juniper::FieldResult;
-use shelf_database::{Cache, Schema, Store};
+use shelf_database::{
+    Cache,
+    Schema,
+    Store,
+};
 use std::marker::PhantomData;
 
 pub struct Mutation<C: Cache, S: Store> {
@@ -21,13 +29,16 @@ impl<C: Cache, S: Store> Mutation<C, S> {
 
 #[juniper::graphql_object(Context = Context<C, S>)]
 impl<C: Cache, S: Store> Mutation<C, S> {
-    fn set_schema(context: &Context<C, S>, input: SchemaInput) -> FieldResult<SchemaType> {
-        let mut db = context.db.write().unwrap();
+    async fn set_schema(context: &Context<C, S>, input: SchemaInput) -> FieldResult<SchemaType> {
         let schema = Schema::new(input.id, &input.name, input.description);
 
-        let res = SchemaType::from(&schema);
+        let res = SchemaType::from(schema.clone());
 
-        db.cache_mut().set_schema(&context.logger, schema, "")?;
+        context
+            .db
+            .cache()
+            .insert_schema(&context.logger, schema, "")
+            .await?;
 
         Ok(res)
     }

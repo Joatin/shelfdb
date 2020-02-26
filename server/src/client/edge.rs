@@ -1,18 +1,30 @@
-use crate::client::collection::Collection;
-use crate::context::Context;
-use juniper::meta::MetaType;
-use juniper::{Arguments, DefaultScalarValue, ExecutionResult, Executor, GraphQLType, Registry};
-use shelf_database::{Cache, Document, Schema as DbSchema, Store};
-use std::sync::RwLock;
+use crate::{
+    client::collection::Collection,
+    context::Context,
+};
+use juniper::{
+    meta::MetaType,
+    Arguments,
+    DefaultScalarValue,
+    ExecutionResult,
+    Executor,
+    GraphQLType,
+    Registry,
+};
+use shelf_database::{
+    Cache,
+    Document,
+    Schema as DbSchema,
+    Store,
+};
 
-pub struct Edge<'a, C: Cache, S: Store> {
-    node: Collection<'a, C, S>,
+pub struct Edge<C: Cache, S: Store> {
+    node: Collection<C, S>,
     cursor: String,
 }
 
-impl<'a, C: Cache, S: Store> Edge<'a, C, S> {
-    pub fn new(lock: &'a RwLock<Document>) -> Self {
-        let doc = lock.read().unwrap();
+impl<C: Cache, S: Store> Edge<C, S> {
+    pub async fn new(doc: Document) -> Edge<C, S> {
         let cursor = doc.id.to_string();
         Self {
             node: Collection::new(doc),
@@ -21,9 +33,9 @@ impl<'a, C: Cache, S: Store> Edge<'a, C, S> {
     }
 }
 
-impl<'a, C: Cache, S: Store> GraphQLType for Edge<'a, C, S> {
+impl<C: Cache, S: Store> GraphQLType for Edge<C, S> {
     type Context = Context<C, S>;
-    type TypeInfo = (&'a str, &'a str, &'a DbSchema);
+    type TypeInfo = (String, String, DbSchema);
 
     fn name(info: &Self::TypeInfo) -> Option<&str> {
         Some(&info.0)
@@ -34,7 +46,7 @@ impl<'a, C: Cache, S: Store> GraphQLType for Edge<'a, C, S> {
         DefaultScalarValue: 'r,
     {
         let fields = vec![
-            registry.field::<&Collection<C, S>>("node", &(&info.1, &info.2)),
+            registry.field::<&Collection<C, S>>("node", &(info.1.clone(), info.2.clone())),
             registry.field::<&String>("cursor", &()),
         ];
 
@@ -51,7 +63,7 @@ impl<'a, C: Cache, S: Store> GraphQLType for Edge<'a, C, S> {
         executor: &Executor<Self::Context>,
     ) -> ExecutionResult {
         match field_name {
-            "node" => executor.resolve_with_ctx(&(info.1, info.2), &self.node),
+            "node" => executor.resolve_with_ctx(&(info.1.clone(), info.2.clone()), &self.node),
             "cursor" => executor.resolve_with_ctx(&(), &self.cursor),
             _ => panic!("Field {} not found", field_name),
         }

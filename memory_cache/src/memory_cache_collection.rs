@@ -1,45 +1,53 @@
-use shelf_database::{CacheCollection, Collection, Document};
-use std::collections::BTreeMap;
-use std::mem;
-use std::sync::RwLock;
+use futures::{
+    future::BoxFuture,
+    stream,
+    stream::BoxStream,
+    FutureExt,
+    StreamExt,
+};
+use shelf_database::{
+    CacheCollection,
+    Collection,
+    Document,
+};
+use std::{
+    collections::BTreeMap,
+    mem,
+    sync::Arc,
+};
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct MemoryCacheCollection {
-    collection: Collection,
-    documents: Vec<RwLock<Document>>,
-    id_index: BTreeMap<Uuid, usize>,
+    collection: Arc<RwLock<Collection>>,
+    documents: Arc<RwLock<Vec<Arc<Document>>>>,
+    id_index: Arc<RwLock<BTreeMap<Uuid, Arc<Document>>>>,
 }
 
 impl MemoryCacheCollection {
     pub fn new(collection: Collection, documents: Vec<Document>) -> Self {
+        let docs: Vec<_> = documents.into_iter().map(Arc::new).collect();
+
+        let id_index: BTreeMap<_, _> = docs.clone().into_iter().map(|i| (i.id, i)).collect();
+
         Self {
-            collection,
-            documents: documents.into_iter().map(RwLock::new).collect(),
-            id_index: BTreeMap::new(),
+            collection: Arc::new(RwLock::new(collection)),
+            documents: Arc::new(RwLock::new(docs)),
+            id_index: Arc::new(RwLock::new(id_index)),
         }
     }
 
-    pub fn get_data_cloned(&self) -> (Collection, Vec<Document>) {
-        let documents: Vec<Document> = self
+    pub async fn get_size(&self) -> usize {
+        let mut size =
+            self.id_index.read().await.len() * (mem::size_of::<Uuid>() + mem::size_of::<usize>());
+
+        size = self
             .documents()
-            .iter()
-            .map(|lock| {
-                let doc = lock.read().unwrap();
-                doc.clone()
-            })
-            .collect();
-        (self.collection.clone(), documents)
-    }
+            .fold(size, |acc, val| async move { (acc + val.get_size()) + 0 })
+            .await;
 
-    pub fn get_size(&self) -> usize {
-        let mut size = self.id_index.len() * (mem::size_of::<Uuid>() + mem::size_of::<usize>());
-
-        for doc in &self.documents {
-            let lock = doc.read().unwrap();
-            size += lock.get_size();
-        }
-
-        size += self.collection.get_size();
+        size += self.collection.read().await.get_size();
 
         size
     }
@@ -47,99 +55,114 @@ impl MemoryCacheCollection {
 
 impl CacheCollection for MemoryCacheCollection {
     // this is crazy slow...
-    fn set_document(&mut self, document: Document) {
-        match self.id_index.get(&document.id) {
-            Some(index) => {
-                self.documents[*index] = RwLock::new(document);
-            }
-            None => {
-                self.id_index.insert(document.id, self.documents.len());
-                self.documents.push(RwLock::new(document));
+    fn set_document(&self, document: Document) -> BoxFuture<()> {
+        async move {
+            let mut index = self.id_index.write().await;
+
+            match index.get(&document.id) {
+                Some(_val) => {
+                    // let mut lock = self.documents.write().await;
+                    // lock[*index] = Arc::new(document);
+                }
+                None => {
+                    let doc = Arc::new(document);
+                    index.insert(doc.id, doc.clone());
+
+                    let mut lock = self.documents.write().await;
+                    lock.push(doc);
+                }
             }
         }
-        //        match self.id_index.binary_search_by_key(&document.id, |i| i.0) {
-        //            Ok(key) => {
+        .boxed()
+
+        //        match self.id_index.binary_search_by_key(&document.id, |i|
+        // i.0) {            Ok(key) => {
         //                let index = self.id_index[key].1;
         //                self.documents[index] = RwLock::new(document);
         //            },
         //            Err(key) => {
-        //                // The document does not exist, we just need to insert it
-        //                self.id_index.insert(key, (document.id, self.documents.len()));
-        //                self.documents.push(RwLock::new(document));
+        //                // The document does not exist, we just need to insert
+        // it                self.id_index.insert(key, (document.id,
+        // self.documents.len()));                
+        // self.documents.push(RwLock::new(document));
         //
         //            },
         //        }
     }
 
-    fn inner_collection(&self) -> &Collection {
-        &self.collection
+    fn inner_collection(&self) -> BoxFuture<Collection> {
+        async move { self.collection.read().await.clone() }.boxed()
     }
 
-    fn inner_collection_mut(&mut self) -> &mut Collection {
-        &mut self.collection
+    fn set_collection(&self, collection: Collection) -> BoxFuture<()> {
+        async move {
+            let mut lock = self.collection.write().await;
+            *lock = collection;
+        }
+        .boxed()
     }
 
-    fn documents(&self) -> &[RwLock<Document>] {
-        &self.documents
+    fn documents(&self) -> BoxStream<Document> {
+        stream::once(self.id_index.read())
+            .map(|i| {
+                println!("SIZE: {}", i.len());
+                stream::iter(i.clone())
+            })
+            .flatten()
+            .then(|(_key, val)| async move { Document::clone(&val) })
+            .boxed()
     }
 
-    fn document(&self, id: Uuid) -> Option<&RwLock<Document>> {
-        self.id_index.get(&id).map(|i| &self.documents[*i])
-    }
-
-    fn find_first_by_field(
-        &self,
-        field_name: &str,
-        field_value: &str,
-    ) -> Option<&RwLock<Document>> {
-        self.documents.iter().find(|i| {
-            let lock = i.read().unwrap();
-            if let Some(val) = lock.fields.get(field_name) {
-                if val == field_value {
-                    return true;
-                }
+    fn document(&self, id: Uuid) -> BoxFuture<Option<Document>> {
+        async move {
+            let index = self.id_index.read().await;
+            match index.get(&id) {
+                None => None,
+                Some(val) => Some(Document::clone(&val)),
             }
-            false
-        })
+        }
+        .boxed()
     }
 
-    fn find_by_field(&self, field_name: &str, field_value: &str) -> Vec<&RwLock<Document>> {
-        self.documents
-            .iter()
-            .filter(|i| {
-                let lock = i.read().unwrap();
-                if let Some(val) = lock.fields.get(field_name) {
+    fn find_first_by_field<'a>(
+        &'a self,
+        field_name: &'a str,
+        field_value: &'a str,
+    ) -> BoxFuture<'a, Option<Document>> {
+        let stream = self.find_by_field(field_name, field_value);
+        stream.into_future().map(|(next, _)| next).boxed()
+    }
+
+    // TODO: Might be good to do some index checking ;)
+    fn find_by_field<'a>(
+        &'a self,
+        field_name: &'a str,
+        field_value: &'a str,
+    ) -> BoxStream<'a, Document> {
+        self.documents()
+            .filter(move |i| {
+                if let Some(val) = i.fields.get(field_name) {
                     if val == field_value {
-                        return true;
+                        return futures::future::ready(true);
                     }
                 }
-                false
+                futures::future::ready(false)
             })
-            .collect()
-    }
-}
-
-impl Into<Box<dyn CacheCollection>> for Box<MemoryCacheCollection> {
-    fn into(self) -> Box<dyn CacheCollection> {
-        self
+            .boxed()
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::memory_cache_collection::MemoryCacheCollection;
-    use shelf_database::{CacheCollection, Collection};
+    use shelf_database::{
+        CacheCollection,
+        Collection,
+    };
 
-    #[test]
-    fn inner_collection_should_return_the_inner_collection() {
+    #[tokio::test]
+    async fn inner_collection_should_return_the_inner_collection() {
         let cache = MemoryCacheCollection::new(Collection::new("TEST".to_string(), None), vec![]);
-        assert_eq!(cache.inner_collection().name, "TEST");
-    }
-
-    #[test]
-    fn inner_collection_mut_should_return_the_inner_collection() {
-        let mut cache =
-            MemoryCacheCollection::new(Collection::new("TEST".to_string(), None), vec![]);
-        assert_eq!(cache.inner_collection_mut().name, "TEST");
+        assert_eq!(cache.inner_collection().await.name, "TEST");
     }
 }

@@ -1,5 +1,8 @@
 use crate::context::Context;
-use shelf_database::{Cache, Store};
+use shelf_database::{
+    Cache,
+    Store,
+};
 use std::marker::PhantomData;
 
 pub struct Mutation<C: Cache, S: Store> {

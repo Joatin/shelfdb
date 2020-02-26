@@ -6,6 +6,8 @@
 extern crate slog;
 #[macro_use]
 extern crate juniper;
+#[macro_use]
+extern crate failure;
 
 mod admin;
 mod client;

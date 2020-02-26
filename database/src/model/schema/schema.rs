@@ -1,8 +1,15 @@
-use crate::util::extract_graphql_schema;
-use crate::util::ExtractedData;
-use chrono::{DateTime, Utc};
-use graphql_parser::parse_schema;
-use graphql_parser::schema::Document;
+use crate::util::{
+    extract_graphql_schema,
+    ExtractedData,
+};
+use chrono::{
+    DateTime,
+    Utc,
+};
+use graphql_parser::{
+    parse_schema,
+    schema::Document,
+};
 use std::collections::HashMap;
 use uuid::Uuid;
 

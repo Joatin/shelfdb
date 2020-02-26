@@ -1,21 +1,39 @@
-use crate::{Cache, CacheCollection, CacheSchema, Collection, Document, Schema, Store};
+use crate::{
+    Cache,
+    CacheCollection,
+    CacheSchema,
+    Collection,
+    Document,
+    Schema,
+    Store,
+};
 use failure::Error;
+use futures::{
+    future::BoxFuture,
+    stream::BoxStream,
+};
 use slog::Logger;
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::RwLock;
+use std::{
+    future::Future,
+    pin::Pin,
+};
 use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct TestCache;
+
+#[derive(Clone)]
 pub struct TestCacheSchema;
+
+#[derive(Clone)]
 pub struct TestCacheCollection;
 
 impl Cache for TestCache {
     type CacheSchema = TestCacheSchema;
 
     fn load<'a, S: Store>(
-        &'a mut self,
+        &'a self,
         _logger: &'a Logger,
         _store: &'a S,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
@@ -30,32 +48,32 @@ impl Cache for TestCache {
         unimplemented!()
     }
 
-    fn schemas(&self) -> &Vec<RwLock<Self::CacheSchema>> {
+    fn schemas(&self) -> BoxStream<Self::CacheSchema> {
         unimplemented!()
     }
 
-    fn schema(&self, _logger: &Logger, _id: Uuid) -> Option<&RwLock<Self::CacheSchema>> {
+    fn schema(&self, _id: Uuid) -> BoxFuture<Option<Self::CacheSchema>> {
         unimplemented!()
     }
 
-    fn schema_by_name(&self, _logger: &Logger, _name: &str) -> Option<&RwLock<Self::CacheSchema>> {
+    fn schema_by_name(&self, _name: &str) -> BoxFuture<Option<Self::CacheSchema>> {
         unimplemented!()
     }
 
-    fn set_schema(
-        &mut self,
-        _logger: &Logger,
+    fn insert_schema<'a>(
+        &'a self,
+        _logger: &'a Logger,
         _schema: Schema,
-        _new_graphql_schema: &str,
-    ) -> Result<(), Error> {
+        _new_graphql_schema: &'a str,
+    ) -> BoxFuture<'a, Result<(), Error>> {
         unimplemented!()
     }
 
-    fn cache_size(&self) -> usize {
+    fn cache_size(&self) -> BoxFuture<usize> {
         unimplemented!()
     }
 
-    fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> BoxFuture<bool> {
         unimplemented!()
     }
 
@@ -67,49 +85,49 @@ impl Cache for TestCache {
 impl CacheSchema for TestCacheSchema {
     type CacheCollection = TestCacheCollection;
 
-    fn inner_schema(&self) -> &Schema {
+    fn inner_schema(&self) -> BoxFuture<Schema> {
         unimplemented!()
     }
 
-    fn inner_schema_mut(&mut self) -> &mut Schema {
+    fn set_schema(&self, _schema: Schema) -> BoxFuture<()> {
         unimplemented!()
     }
 
-    fn collections(&self) -> &[RwLock<Self::CacheCollection>] {
+    fn collections(&self) -> BoxStream<Self::CacheCollection> {
         unimplemented!()
     }
 
-    fn set_collection(&mut self, _collection: Collection) -> Result<(), Error> {
+    fn insert_collection(&self, _collection: Collection) -> BoxFuture<Result<(), Error>> {
         unimplemented!()
     }
 
-    fn collection(&self, _id: Uuid) -> Option<&RwLock<Self::CacheCollection>> {
+    fn collection(&self, _id: Uuid) -> BoxFuture<Option<Self::CacheCollection>> {
         unimplemented!()
     }
 
-    fn collection_by_name(&self, _name: &str) -> Option<&RwLock<Self::CacheCollection>> {
+    fn collection_by_name(&self, _name: &str) -> BoxFuture<Option<Self::CacheCollection>> {
         unimplemented!()
     }
 }
 
 impl CacheCollection for TestCacheCollection {
-    fn set_document(&mut self, _document: Document) {
+    fn set_document(&self, _document: Document) -> BoxFuture<()> {
         unimplemented!()
     }
 
-    fn inner_collection(&self) -> &Collection {
+    fn inner_collection(&self) -> BoxFuture<Collection> {
         unimplemented!()
     }
 
-    fn inner_collection_mut(&mut self) -> &mut Collection {
+    fn set_collection(&self, _collection: Collection) -> BoxFuture<()> {
         unimplemented!()
     }
 
-    fn documents(&self) -> &[RwLock<Document>] {
+    fn documents(&self) -> BoxStream<Document> {
         unimplemented!()
     }
 
-    fn document(&self, _id: Uuid) -> Option<&RwLock<Document>> {
+    fn document(&self, _id: Uuid) -> BoxFuture<Option<Document>> {
         unimplemented!()
     }
 
@@ -117,11 +135,11 @@ impl CacheCollection for TestCacheCollection {
         &self,
         _field_name: &str,
         _field_value: &str,
-    ) -> Option<&RwLock<Document>> {
+    ) -> BoxFuture<Option<Document>> {
         unimplemented!()
     }
 
-    fn find_by_field(&self, _field_name: &str, _field_value: &str) -> Vec<&RwLock<Document>> {
+    fn find_by_field(&self, _field_name: &str, _field_value: &str) -> BoxStream<Document> {
         unimplemented!()
     }
 }

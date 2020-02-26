@@ -1,5 +1,10 @@
-use hyper::header::HeaderValue;
-use hyper::{header, Body, Response, StatusCode};
+use hyper::{
+    header,
+    header::HeaderValue,
+    Body,
+    Response,
+    StatusCode,
+};
 use std::convert::Infallible;
 
 /// Takes care of rendering the playground graphql explorer

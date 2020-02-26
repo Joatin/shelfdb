@@ -1,22 +1,41 @@
-use crate::memory_cache_collection::MemoryCacheCollection;
-use crate::memory_cache_schema::MemoryCacheSchema;
+use crate::{
+    memory_cache_collection::MemoryCacheCollection,
+    memory_cache_schema::MemoryCacheSchema,
+};
 use failure::Error;
-use failure::_core::future::Future;
-use failure::_core::pin::Pin;
-use futures::future::join_all;
-use futures::FutureExt;
+use futures::{
+    future::BoxFuture,
+    stream,
+    stream::BoxStream,
+    FutureExt,
+    StreamExt,
+};
 use pretty_bytes::converter::convert;
-use shelf_database::Schema;
-use shelf_database::{Cache, CacheSchema, Store};
+use shelf_database::{
+    Cache,
+    CacheCollection,
+    CacheSchema,
+    Schema,
+    Store,
+};
 use slog::Logger;
-use std::mem;
-use std::sync::RwLock;
-use std::time::Instant;
-use tokio::sync::broadcast::{channel, Receiver, Sender};
+use std::{
+    collections::HashMap,
+    mem,
+    time::Instant,
+};
+use tokio::sync::{
+    broadcast::{
+        channel,
+        Receiver,
+        Sender,
+    },
+    RwLock,
+};
 use uuid::Uuid;
 
 pub struct MemoryCache {
-    schemas: Vec<RwLock<MemoryCacheSchema>>,
+    schemas: RwLock<Vec<MemoryCacheSchema>>,
     on_schema_updates_sender: Sender<()>,
 }
 
@@ -34,9 +53,14 @@ impl MemoryCache {
         let (sender, _) = channel(1);
 
         Ok(Self {
-            schemas: Vec::new(),
+            schemas: RwLock::new(Vec::new()),
             on_schema_updates_sender: sender,
         })
+    }
+
+    async fn do_insert_schema(&self, schema: MemoryCacheSchema) {
+        let mut lock = self.schemas.write().await;
+        lock.push(schema);
     }
 }
 
@@ -47,10 +71,10 @@ where
     type CacheSchema = MemoryCacheSchema;
 
     fn load<'a, S: Store>(
-        &'a mut self,
+        &'a self,
         logger: &'a Logger,
         store: &'a S,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
+    ) -> BoxFuture<Result<(), Error>> {
         async move {
             let start_time = Instant::now();
             info!(logger, "Fetching schemas from store");
@@ -63,13 +87,13 @@ where
                 info!(logger, "Info found {} collections for schema {}", collections.len(), schema.name);
 
 
-                let mut mapped_collections = vec![];
+                let mut mapped_collections = HashMap::new();
                 for collection in collections {
                     let documents = store.get_documents(&logger, &schema, &collection).await?;
-                    mapped_collections.push(RwLock::new(MemoryCacheCollection::new(collection, documents)))
+                    mapped_collections.insert(collection.id, MemoryCacheCollection::new(collection, documents));
                 }
 
-                self.schemas.push(RwLock::new(MemoryCacheSchema::new(schema, mapped_collections)));
+                self.do_insert_schema(MemoryCacheSchema::new(schema, mapped_collections)).await;
             }
 
             info!(logger, "All schemas fetched and added to cache! 😎"; "load_time" => format!("{}ms", Instant::now().duration_since(start_time).as_millis()));
@@ -81,27 +105,32 @@ where
         &'a self,
         logger: &'a Logger,
         store: &'a S,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
+    ) -> BoxFuture<Result<(), Error>> {
         async move {
-            for schema_lock in self.schemas.iter() {
-                let (schema, collection) = {
-                    let lock = schema_lock.read().unwrap();
-                    lock.get_data_cloned()
-                };
+            self.schemas().for_each_concurrent(None, |schema: Self::CacheSchema| {
+                let schema = schema;
+                async move {
+                    let inner_schema = schema.inner_schema().await;
+                    if let Err(err) = store.save_schema(&logger, &inner_schema).await {
+                        error!(logger, "Failed to save schema"; "error" => format!("{}", err));
+                    }
+                    schema.collections().for_each_concurrent(None, move |collection| {
+                        let inner_schema = inner_schema.clone();
+                        async move {
+                            let inner_collection = collection.inner_collection().await;
+                            if let Err(err) = store.save_collection(&logger, &inner_schema, &inner_collection).await {
+                                error!(logger, "Failed to save collection"; "error" => format!("{}", err));
+                            }
 
-                store.save_schema(&logger, &schema).await?;
-
-                for (collection, documents) in collection {
-                    store.save_collection(&logger, &schema, &collection).await?;
-
-                    let futs: Vec<_> = documents
-                        .into_iter()
-                        .map(|doc| store.save_document(&logger, &schema, &collection, doc))
-                        .collect();
-
-                    join_all(futs).await.into_iter().collect::<Result<_, _>>()?;
+                            collection.documents().for_each_concurrent(None, |document| async {
+                                if let Err(err) = store.save_document(&logger, &inner_schema, &inner_collection, document).await {
+                                    error!(logger, "Failed to save document"; "error" => format!("{}", err));
+                                }
+                            }).await;
+                        }
+                    }).await;
                 }
-            }
+            }).await;
 
             store.flush(&logger).await?;
             Ok(())
@@ -109,50 +138,77 @@ where
         .boxed()
     }
 
-    fn schemas(&self) -> &Vec<RwLock<Self::CacheSchema>> {
-        &self.schemas
+    fn schemas(&self) -> BoxStream<Self::CacheSchema> {
+        stream::once(self.schemas.read())
+            .map(|i| stream::iter(i.clone().into_iter()))
+            .flatten()
+            .then(|i| async move { Self::CacheSchema::clone(&i) })
+            .boxed()
     }
 
-    fn schema(&self, _logger: &Logger, id: Uuid) -> Option<&RwLock<Self::CacheSchema>> {
-        self.schemas.iter().find(|i| {
-            let lock = i.read().unwrap();
-            lock.id.eq(&id)
-        })
+    fn schema(&self, id: Uuid) -> BoxFuture<Option<Self::CacheSchema>> {
+        self.schemas()
+            .filter_map(move |i| {
+                async move {
+                    if i.inner_schema().await.id == id {
+                        return Some(i);
+                    }
+                    return None;
+                }
+                .boxed()
+            })
+            .into_future()
+            .map(|(next, _)| next)
+            .boxed()
     }
 
-    fn schema_by_name(&self, _logger: &Logger, name: &str) -> Option<&RwLock<Self::CacheSchema>> {
-        self.schemas.iter().find(|i| {
-            let lock = i.read().unwrap();
-            lock.name.eq(name)
-        })
+    fn schema_by_name<'a>(&'a self, name: &'a str) -> BoxFuture<'a, Option<Self::CacheSchema>> {
+        self.schemas()
+            .filter_map(move |i| {
+                async move {
+                    if i.inner_schema().await.name == name {
+                        return Some(i);
+                    }
+                    return None;
+                }
+                .boxed()
+            })
+            .into_future()
+            .map(|(next, _)| next)
+            .boxed()
     }
 
-    fn set_schema(
-        &mut self,
-        logger: &Logger,
+    fn insert_schema<'a>(
+        &'a self,
+        logger: &'a Logger,
         schema: Schema,
-        new_graphql_schema: &str,
-    ) -> Result<(), Error> {
-        let mut mem_schema = MemoryCacheSchema::new(schema, vec![]);
-        mem_schema.migrate(&logger, new_graphql_schema)?;
-        self.schemas.push(RwLock::new(mem_schema));
-        Ok(())
-    }
-
-    fn cache_size(&self) -> usize {
-        let mut size = 0;
-        size += mem::size_of_val(&self);
-
-        for schema in &self.schemas {
-            let lock = schema.read().unwrap();
-            size += lock.get_size();
+        new_graphql_schema: &'a str,
+    ) -> BoxFuture<'a, Result<(), Error>> {
+        async move {
+            let mem_schema = MemoryCacheSchema::new(schema, HashMap::new());
+            mem_schema.migrate(&logger, new_graphql_schema).await?;
+            self.do_insert_schema(mem_schema).await;
+            Ok(())
         }
-
-        size
+        .boxed()
     }
 
-    fn is_empty(&self) -> bool {
-        self.schemas.is_empty()
+    fn cache_size(&self) -> BoxFuture<usize> {
+        async move {
+            let mut size = 0;
+            size += mem::size_of_val(&self);
+
+            for schema in self.schemas.read().await.iter() {
+                size += schema.get_size().await;
+            }
+
+            size
+        }
+        .boxed()
+    }
+
+    fn is_empty(&self) -> BoxFuture<bool> {
+        async move { self.schemas.read().await.is_empty() }.boxed()
     }
 
     fn on_schema_updates(&self) -> Receiver<()> {

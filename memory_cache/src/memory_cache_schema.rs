@@ -1,132 +1,145 @@
 use crate::memory_cache_collection::MemoryCacheCollection;
 use failure::Error;
-use shelf_database::{CacheCollection, CacheSchema, Collection, Document, Schema};
-use std::ops::Deref;
-use std::sync::RwLock;
+use futures::{
+    future::BoxFuture,
+    stream,
+    stream::BoxStream,
+    FutureExt,
+    StreamExt,
+};
+use shelf_database::{
+    CacheCollection,
+    CacheSchema,
+    Collection,
+    Schema,
+};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+};
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct MemoryCacheSchema {
-    schema: Schema,
-    collections: Vec<RwLock<MemoryCacheCollection>>,
+    schema: Arc<RwLock<Schema>>,
+    collections: Arc<RwLock<HashMap<Uuid, MemoryCacheCollection>>>,
 }
 
 impl MemoryCacheSchema {
-    pub fn new(schema: Schema, collections: Vec<RwLock<MemoryCacheCollection>>) -> Self {
+    pub fn new(schema: Schema, collections: HashMap<Uuid, MemoryCacheCollection>) -> Self {
         Self {
-            schema,
-            collections,
+            schema: Arc::new(RwLock::new(schema)),
+            collections: Arc::new(RwLock::new(collections)),
         }
     }
 
-    pub fn get_data_cloned(&self) -> (Schema, Vec<(Collection, Vec<Document>)>) {
-        let collection: Vec<_> = self
-            .collections()
-            .iter()
-            .map(|lock| {
-                let coll = lock.read().unwrap();
-                coll.get_data_cloned()
-            })
-            .collect();
-        (self.schema.clone(), collection)
-    }
-
-    pub fn get_size(&self) -> usize {
-        let mut size = 0;
-
-        for coll in &self.collections {
-            let lock = coll.read().unwrap();
-            size += lock.get_size();
-        }
-
-        size
+    pub async fn get_size(&self) -> usize {
+        self.collections()
+            .fold(0, |acc, val| async move { acc + val.get_size().await })
+            .await
     }
 }
 
 impl CacheSchema for MemoryCacheSchema {
     type CacheCollection = MemoryCacheCollection;
 
-    fn inner_schema(&self) -> &Schema {
-        &self.schema
+    fn inner_schema(&self) -> BoxFuture<Schema> {
+        async move { self.schema.read().await.clone() }.boxed()
     }
 
-    fn inner_schema_mut(&mut self) -> &mut Schema {
-        &mut self.schema
+    fn set_schema(&self, schema: Schema) -> BoxFuture<()> {
+        async move {
+            let mut lock = self.schema.write().await;
+            *lock = schema
+        }
+        .boxed()
     }
 
-    fn collections(&self) -> &[RwLock<Self::CacheCollection>] {
-        &self.collections
+    fn collections(&self) -> BoxStream<<MemoryCacheSchema as CacheSchema>::CacheCollection> {
+        stream::once(self.collections.read())
+            .map(|i| stream::iter(i.clone().into_iter()))
+            .flatten()
+            .map(|(_key, val)| val)
+            .boxed()
     }
 
-    fn set_collection(&mut self, collection: Collection) -> Result<(), Error> {
-        let same_name = self.collections.iter().find(|i| {
-            let lock = i.read().unwrap();
-            lock.inner_collection().name == collection.name
-        });
-
-        if let Some(val) = same_name {
-            let id = {
-                let lock = val.read().unwrap();
-                lock.inner_collection().id
-            };
-            if id == collection.id {
-                // Nice found same item, lets replace it
-                let index = self
-                    .collections
-                    .iter()
-                    .position(|i| {
-                        let lock = i.read().unwrap();
-                        lock.inner_collection().id == collection.id
-                    })
-                    .unwrap();
-                self.collections.remove(index);
-                self.collections
-                    .push(RwLock::new(MemoryCacheCollection::new(collection, vec![])));
-                Ok(())
-            } else {
-                bail!("Another collection with the same name does already exist")
+    fn insert_collection(&self, collection: Collection) -> BoxFuture<Result<(), Error>> {
+        async move {
+            // CHECK NAME
+            if let Some(coll) = self.collection_by_name(&collection.name).await {
+                if coll.inner_collection().await.id != collection.id {
+                    bail!("A collection with this name does already exist")
+                }
             }
-        } else {
-            self.collections
-                .push(RwLock::new(MemoryCacheCollection::new(collection, vec![])));
+
+            // DO THE INSERT
+            let mut lock = self.collections.write().await;
+            lock.insert(
+                collection.id,
+                MemoryCacheCollection::new(collection, vec![]),
+            );
+
             Ok(())
         }
+        .boxed()
     }
 
-    fn collection(&self, id: Uuid) -> Option<&RwLock<Self::CacheCollection>> {
-        self.collections.iter().find(|i| {
-            let lock = i.read().unwrap();
-            lock.inner_collection().id.eq(&id)
-        })
+    fn collection(&self, id: Uuid) -> BoxFuture<Option<Self::CacheCollection>> {
+        async move {
+            let stream = self.collections();
+            let mut mapped = stream
+                .filter_map(move |i| async move {
+                    if i.inner_collection().await.id.eq(&id) {
+                        return Some(i);
+                    }
+                    return None;
+                })
+                .boxed();
+            mapped.next().await
+        }
+        .boxed()
     }
 
-    fn collection_by_name(&self, name: &str) -> Option<&RwLock<Self::CacheCollection>> {
-        self.collections.iter().find(|i| {
-            let lock = i.read().unwrap();
-            lock.inner_collection().name == name
-        })
-    }
-}
-
-impl Deref for MemoryCacheSchema {
-    type Target = Schema;
-
-    fn deref(&self) -> &Self::Target {
-        &self.schema
+    fn collection_by_name<'a>(
+        &'a self,
+        name: &'a str,
+    ) -> BoxFuture<'a, Option<Self::CacheCollection>> {
+        async move {
+            let stream = self.collections();
+            let mut mapped = stream
+                .filter_map(move |i| {
+                    let name = name.to_string();
+                    async move {
+                        if i.inner_collection().await.name == name {
+                            return Some(i);
+                        }
+                        return None;
+                    }
+                })
+                .boxed();
+            mapped.next().await
+        }
+        .boxed()
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::memory_cache_schema::MemoryCacheSchema;
-    use shelf_database::{CacheSchema, Schema};
+    use shelf_database::{
+        CacheSchema,
+        Schema,
+    };
+    use std::collections::HashMap;
     use uuid::Uuid;
 
-    #[test]
-    fn inner_schema_should_return_the_inner_schema() {
+    #[tokio::test]
+    async fn inner_schema_should_return_the_inner_schema() {
         let id = Uuid::new_v4();
-        let mem_schema = MemoryCacheSchema::new(Schema::new(id, "TEST", None), vec![]);
+        let mem_schema = MemoryCacheSchema::new(Schema::new(id, "TEST", None), HashMap::new());
         assert_eq!(
-            mem_schema.inner_schema().id,
+            mem_schema.inner_schema().await.id,
             id,
             "The schemas are not the same"
         );

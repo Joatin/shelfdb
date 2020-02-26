@@ -1,25 +1,41 @@
 use crate::context::Context;
 use graphql_parser::schema::Type as GType;
-use juniper::meta::{DeprecationStatus, Field, MetaType};
 use juniper::{
-    to_camel_case, Arguments, DefaultScalarValue, ExecutionResult, Executor, GraphQLType, Registry,
+    meta::{
+        DeprecationStatus,
+        Field,
+        MetaType,
+    },
+    to_camel_case,
+    Arguments,
+    DefaultScalarValue,
+    ExecutionResult,
+    Executor,
+    GraphQLType,
+    Registry,
     Type,
 };
 use serde_json::Value;
-use shelf_database::{Cache, Document, Schema as DbSchema, Store};
-use std::borrow::Cow;
-use std::marker::PhantomData;
-use std::sync::RwLockReadGuard;
+use shelf_database::{
+    Cache,
+    Document,
+    Schema as DbSchema,
+    Store,
+};
+use std::{
+    borrow::Cow,
+    marker::PhantomData,
+};
 use uuid::Uuid;
 
-pub struct Collection<'a, C: Cache, S: Store> {
-    document: RwLockReadGuard<'a, Document>,
+pub struct Collection<C: Cache, S: Store> {
+    document: Document,
     phantom_store: PhantomData<S>,
     phantom_cache: PhantomData<C>,
 }
 
-impl<'a, C: Cache, S: Store> Collection<'a, C, S> {
-    pub fn new(document: RwLockReadGuard<'a, Document>) -> Self {
+impl<C: Cache, S: Store> Collection<C, S> {
+    pub fn new(document: Document) -> Self {
         Self {
             document,
             phantom_store: PhantomData,
@@ -28,9 +44,9 @@ impl<'a, C: Cache, S: Store> Collection<'a, C, S> {
     }
 }
 
-impl<'a, C: Cache, S: Store> GraphQLType for Collection<'a, C, S> {
+impl<C: Cache, S: Store> GraphQLType for Collection<C, S> {
     type Context = Context<C, S>;
-    type TypeInfo = (&'a str, &'a DbSchema);
+    type TypeInfo = (String, DbSchema);
 
     fn name(info: &Self::TypeInfo) -> Option<&str> {
         Some(&info.0)

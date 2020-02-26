@@ -1,12 +1,23 @@
 use crate::util::parse_graphql_response::parse_graphql_response;
-use hyper::body::to_bytes;
-use hyper::header::HeaderValue;
-use hyper::{header, Body, Request, Response, StatusCode};
-use juniper::http::GraphQLRequest;
-use juniper::DefaultScalarValue;
-use juniper::{GraphQLTypeAsync, RootNode};
-use std::convert::Infallible;
-use std::sync::Arc;
+use hyper::{
+    body::to_bytes,
+    header,
+    header::HeaderValue,
+    Body,
+    Request,
+    Response,
+    StatusCode,
+};
+use juniper::{
+    http::GraphQLRequest,
+    DefaultScalarValue,
+    GraphQLTypeAsync,
+    RootNode,
+};
+use std::{
+    convert::Infallible,
+    sync::Arc,
+};
 
 pub async fn graphql_post<
     Q: GraphQLTypeAsync<DefaultScalarValue, Context = Ctxt>,
@@ -24,7 +35,7 @@ where
     match to_bytes(req.into_body()).await {
         Ok(body) => match serde_json::from_slice::<GraphQLRequest<DefaultScalarValue>>(&body) {
             Ok(request) => {
-                let resp = request.execute(&root_node, &context);
+                let resp = request.execute_async(&root_node, &context).await;
 
                 Ok(parse_graphql_response(resp))
             }

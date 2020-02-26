@@ -1,12 +1,17 @@
-use crate::cache::Cache;
-use crate::store::Store;
-use crate::CacheCollection;
-use crate::CacheSchema;
-use crate::{Document, Schema};
+use crate::{
+    cache::Cache,
+    store::Store,
+    CacheCollection,
+    CacheSchema,
+    Document,
+    Schema,
+};
 use failure::Error;
 use slog::Logger;
-use std::collections::HashMap;
-use std::ops::Deref;
+use std::{
+    collections::HashMap,
+    ops::Deref,
+};
 use uuid::Uuid;
 
 pub struct Database<C: Cache, S: Store> {
@@ -15,23 +20,23 @@ pub struct Database<C: Cache, S: Store> {
 }
 
 impl<C: Cache, S: Store> Database<C, S> {
-    pub async fn new(logger: &Logger, store: S, mut cache: C) -> Result<Self, Error> {
+    pub async fn new(logger: &Logger, store: S, cache: C) -> Result<Self, Error> {
         cache.load(&logger, &store).await?;
 
-        if cache.is_empty() {
+        if cache.is_empty().await {
             warn!(logger, "No schemas found, creating initial setup...");
             let schema_id = Uuid::new_v4();
-            cache.set_schema(
-                &logger,
-                Schema::new(schema_id, "shelf", None),
-                include_str!("shelf_base_schema.graphql"),
-            )?;
+            cache
+                .insert_schema(
+                    &logger,
+                    Schema::new(schema_id, "shelf", None),
+                    include_str!("shelf_base_schema.graphql"),
+                )
+                .await?;
 
-            let schema_lock = cache.schema(&logger, schema_id).unwrap();
+            let schema = cache.schema(schema_id).await.unwrap();
             {
-                let schema = schema_lock.read().unwrap();
-                let collection_lock = schema.collection_by_name("Car").unwrap();
-                let mut collection = collection_lock.write().unwrap();
+                let collection = schema.collection_by_name("Car").await.unwrap();
 
                 let mut model_s = HashMap::new();
                 model_s.insert("brand".to_string(), serde_json::to_value("Tesla").unwrap());
@@ -72,7 +77,7 @@ impl<C: Cache, S: Store> Database<C, S> {
         info!(
             logger,
             "Current cache size is: {}",
-            pretty_bytes::converter::convert(cache.cache_size() as f64)
+            pretty_bytes::converter::convert(cache.cache_size().await as f64)
         );
 
         Ok(Self { cache, store })
@@ -80,9 +85,6 @@ impl<C: Cache, S: Store> Database<C, S> {
 
     pub fn cache(&self) -> &C {
         &self.cache
-    }
-    pub fn cache_mut(&mut self) -> &mut C {
-        &mut self.cache
     }
 
     pub async fn save(&self, logger: &Logger) -> Result<(), Error> {

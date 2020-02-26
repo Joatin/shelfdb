@@ -1,11 +1,15 @@
-use chrono::{DateTime, Utc};
+use chrono::{
+    DateTime,
+    Utc,
+};
 use juniper::FieldResult;
 use shelf_database::Schema;
 use uuid::Uuid;
 
 //#[graphql(
 //    name = "Schema",
-//    description = "A schema in the database. A schema is a separate namespace, fully isolated from other schemas"
+//    description = "A schema in the database. A schema is a separate namespace,
+// fully isolated from other schemas"
 //)]
 pub struct SchemaType {
     id: Uuid,
@@ -19,19 +23,22 @@ impl SchemaType {
     fn id(&self) -> FieldResult<&Uuid> {
         Ok(&self.id)
     }
+
     fn name(&self) -> FieldResult<&String> {
         Ok(&self.name)
     }
+
     fn description(&self) -> FieldResult<&Option<String>> {
         Ok(&self.description)
     }
+
     fn created_at(&self) -> FieldResult<&DateTime<Utc>> {
         Ok(&self.created_at)
     }
 }
 
-impl From<&Schema> for SchemaType {
-    fn from(value: &Schema) -> Self {
+impl From<Schema> for SchemaType {
+    fn from(value: Schema) -> Self {
         Self {
             id: value.id,
             name: value.name.to_owned(),

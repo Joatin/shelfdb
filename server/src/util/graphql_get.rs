@@ -1,9 +1,18 @@
 use crate::util::parse_graphql_response::parse_graphql_response;
-use hyper::{Body, Response};
-use juniper::http::GraphQLRequest;
-use juniper::{DefaultScalarValue, GraphQLTypeAsync, RootNode};
-use std::convert::Infallible;
-use std::sync::Arc;
+use hyper::{
+    Body,
+    Response,
+};
+use juniper::{
+    http::GraphQLRequest,
+    DefaultScalarValue,
+    GraphQLTypeAsync,
+    RootNode,
+};
+use std::{
+    convert::Infallible,
+    sync::Arc,
+};
 
 pub async fn graphql_get<
     Q: GraphQLTypeAsync<DefaultScalarValue, Context = Ctxt>,

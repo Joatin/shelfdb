@@ -1,15 +1,19 @@
-use shelf_database::{Cache, Database, Store};
+use shelf_database::{
+    Cache,
+    Database,
+    Store,
+};
 use slog::Logger;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use uuid::Uuid;
 
 pub struct Context<C: Cache, S: Store> {
-    pub db: Arc<RwLock<Database<C, S>>>,
+    pub db: Arc<Database<C, S>>,
     pub logger: Logger,
 }
 
 impl<C: Cache, S: Store> Context<C, S> {
-    pub fn new(logger: &Logger, db: Arc<RwLock<Database<C, S>>>) -> Self {
+    pub fn new(logger: &Logger, db: Arc<Database<C, S>>) -> Self {
         Self {
             db,
             logger: logger.clone(),

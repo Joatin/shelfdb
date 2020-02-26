@@ -1,5 +1,10 @@
 use crate::util::has_collection_directive;
-use graphql_parser::schema::{Definition, Document, ObjectType, TypeDefinition};
+use graphql_parser::schema::{
+    Definition,
+    Document,
+    ObjectType,
+    TypeDefinition,
+};
 
 pub struct ExtractedData {
     pub collections: Vec<ObjectType>,

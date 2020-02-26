@@ -11,11 +11,15 @@ use shelf_database::Database;
 use shelf_file_store::FileStore;
 use shelf_memory_cache::MemoryCache;
 use shelf_server::Server;
-use sloggers::terminal::TerminalLoggerBuilder;
-use sloggers::types::Severity;
-use sloggers::Build;
-use std::process;
-use std::str::FromStr;
+use sloggers::{
+    terminal::TerminalLoggerBuilder,
+    types::Severity,
+    Build,
+};
+use std::{
+    process,
+    str::FromStr,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {

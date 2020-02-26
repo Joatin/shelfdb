@@ -1,92 +1,110 @@
-use crate::util::extract_graphql_schema;
-use crate::util::validate_graphql_schema_correctness;
-use crate::{CacheCollection, Collection, Schema};
+use crate::{
+    util::{
+        extract_graphql_schema,
+        validate_graphql_schema_correctness,
+    },
+    CacheCollection,
+    Collection,
+    Schema,
+};
 use failure::Error;
+use futures::{
+    future::BoxFuture,
+    stream::BoxStream,
+    FutureExt,
+};
 use graphql_parser::parse_schema;
 use slog::Logger;
-use std::ops::Deref;
-use std::sync::RwLock;
 use uuid::Uuid;
 
-/// This trait wraps a regular schema, but lets us retrieve collections with more convenience
-/// methods
+/// This trait wraps a regular schema, but lets us retrieve collections with
+/// more convenience methods
 pub trait CacheSchema: 'static + Send + Sync {
     type CacheCollection: CacheCollection;
 
-    fn inner_schema(&self) -> &Schema;
-    fn inner_schema_mut(&mut self) -> &mut Schema;
-    fn collections(&self) -> &[RwLock<Self::CacheCollection>];
-    fn set_collection(&mut self, collection: Collection) -> Result<(), Error>;
-    fn collection(&self, id: Uuid) -> Option<&RwLock<Self::CacheCollection>>;
-    fn collection_by_name(&self, name: &str) -> Option<&RwLock<Self::CacheCollection>>;
+    fn inner_schema(&self) -> BoxFuture<Schema>;
+    fn set_schema(&self, schema: Schema) -> BoxFuture<()>;
+    fn collections(&self) -> BoxStream<Self::CacheCollection>;
+    fn insert_collection(&self, collection: Collection) -> BoxFuture<Result<(), Error>>;
+    fn collection(&self, id: Uuid) -> BoxFuture<Option<Self::CacheCollection>>;
+    fn collection_by_name<'a>(
+        &'a self,
+        name: &'a str,
+    ) -> BoxFuture<'a, Option<Self::CacheCollection>>;
 
-    fn validate(&self, logger: &Logger) -> Result<(), Error> {
-        if let Some(definition) = self.inner_schema().definition() {
-            validate_graphql_schema_correctness(&logger, &definition)?;
-            // validate_against_current_collections(&logger, &self.collections)?;
+    fn validate<'a>(&'a self, logger: &'a Logger) -> BoxFuture<'a, Result<(), Error>> {
+        async move {
+            if let Some(definition) = self.inner_schema().await.definition() {
+                validate_graphql_schema_correctness(&logger, &definition)?;
+                // validate_against_current_collections(&logger,
+                // &self.collections)?;
+            }
+            Ok(())
         }
-        Ok(())
+        .boxed()
     }
 
-    fn migrate(&mut self, logger: &Logger, new_graphql_schema: &str) -> Result<(), Error> {
-        info!(logger, "Starting schema migration 🤓");
-        let doc = parse_schema(new_graphql_schema)?;
-        validate_graphql_schema_correctness(&logger, &doc)?;
-        info!(logger, "New schema looks valid applying it to schema");
-        let res = extract_graphql_schema(&doc);
+    fn migrate<'a>(
+        &'a self,
+        logger: &'a Logger,
+        new_graphql_schema: &'a str,
+    ) -> BoxFuture<'a, Result<(), Error>> {
+        async move {
+            info!(logger, "Starting schema migration 🤓");
+            let doc = parse_schema(new_graphql_schema)?;
+            validate_graphql_schema_correctness(&logger, &doc)?;
+            info!(logger, "New schema looks valid applying it to schema");
+            let res = extract_graphql_schema(&doc);
 
-        info!(
-            logger,
-            "Found {} collections and {} other types",
-            res.collections.len(),
-            res.other_types.len()
-        );
-
-        if res.collections.is_empty() {
-            warn!(
+            info!(
                 logger,
-                "Since this collection does not have any collections it will be ignored!"
+                "Found {} collections and {} other types",
+                res.collections.len(),
+                res.other_types.len()
             );
-            bail!("Schema has no collections");
-        }
 
-        match self.inner_schema().current_migration_version() {
-            Some(current_version) => {
-                self.inner_schema_mut()
-                    .graphql_schemas
-                    .insert(current_version + 1, new_graphql_schema.to_string());
-
-                // TODO: Add and remove collections
-
-                // TODO: migrate data
-
-                info!(logger, "Done migrating schema");
-                Ok(())
-            }
-            None => {
-                info!(
+            if res.collections.is_empty() {
+                warn!(
                     logger,
-                    "This schema has never has never been migrated, no data needs to be migrated"
+                    "Since this collection does not have any collections it will be ignored!"
                 );
-                self.inner_schema_mut()
-                    .graphql_schemas
-                    .insert(0, new_graphql_schema.to_string());
-
-                for coll in res.collections {
-                    self.set_collection(Collection::new(coll.name.to_string(), None))?;
-                }
-
-                info!(logger, "Done migrating schema");
-                Ok(())
+                bail!("Schema has no collections");
             }
-        }
-    }
-}
 
-impl<C: CacheCollection> Deref for dyn CacheSchema<CacheCollection = C> {
-    type Target = Schema;
+            match self.inner_schema().await.current_migration_version() {
+                Some(current_version) => {
+                    let mut inner_schema = self.inner_schema().await;
+                    inner_schema
+                        .graphql_schemas
+                        .insert(current_version + 1, new_graphql_schema.to_string());
+                    self.set_schema(inner_schema).await;
 
-    fn deref(&self) -> &Self::Target {
-        &self.inner_schema()
+                    // TODO: Add and remove collections
+
+                    // TODO: migrate data
+
+                    info!(logger, "Done migrating schema");
+                    Ok(())
+                }
+                None => {
+                    info!(
+                        logger,
+                        "This schema has never has never been migrated, no data needs to be migrated"
+                    );
+                    let mut inner_schema = self.inner_schema().await;
+                    inner_schema
+                        .graphql_schemas
+                        .insert(0, new_graphql_schema.to_string());
+                    self.set_schema(inner_schema).await;
+
+                    for coll in res.collections {
+                        self.insert_collection(Collection::new(coll.name.to_string(), None)).await?;
+                    }
+
+                    info!(logger, "Done migrating schema");
+                    Ok(())
+                }
+            }
+        }.boxed()
     }
 }

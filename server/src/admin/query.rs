@@ -1,8 +1,14 @@
-use crate::admin::schema_type::SchemaType;
-use crate::context::Context;
+use crate::{
+    admin::schema_type::SchemaType,
+    context::Context,
+};
+use futures::StreamExt;
 use juniper::FieldResult;
-use shelf_database::CacheSchema;
-use shelf_database::{Cache, Store};
+use shelf_database::{
+    Cache,
+    CacheSchema,
+    Store,
+};
 use std::marker::PhantomData;
 
 pub struct Query<C: Cache, S: Store> {
@@ -27,15 +33,12 @@ impl<C: Cache, S: Store> Query<C, S> {
     }
 
     #[graphql(description = "Returns all schemas stored in the database")]
-    fn schemas(context: &Context<C, S>) -> FieldResult<Vec<SchemaType>> {
-        let db = context.db.read().unwrap();
-        Ok(db
+    async fn schemas(context: &Context<C, S>) -> FieldResult<Vec<SchemaType>> {
+        Ok(context
+            .db
             .schemas()
-            .iter()
-            .map(|i| {
-                let lock = i.read().unwrap();
-                SchemaType::from(lock.inner_schema())
-            })
-            .collect())
+            .then(|i| async move { SchemaType::from(i.inner_schema().await) })
+            .collect()
+            .await)
     }
 }

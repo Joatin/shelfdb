@@ -1,4 +1,7 @@
-use chrono::{DateTime, Utc};
+use chrono::{
+    DateTime,
+    Utc,
+};
 use std::mem;
 use uuid::Uuid;
 

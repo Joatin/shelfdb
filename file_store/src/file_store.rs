@@ -1,29 +1,53 @@
 use colored::*;
 use failure::Error;
-use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
-use flate2::Compression;
-use futures::future::join_all;
-use futures::lock::Mutex;
-use futures::stream::StreamExt;
-use futures::{Future, FutureExt};
+use flate2::{
+    read::GzDecoder,
+    write::GzEncoder,
+    Compression,
+};
+use futures::{
+    future::join_all,
+    lock::Mutex,
+    stream::StreamExt,
+    Future,
+    FutureExt,
+};
 use shelf_config::Config;
-use shelf_database::{Collection, Document, Schema, Store};
+use shelf_database::{
+    Collection,
+    Document,
+    Schema,
+    Store,
+};
 use slog::Logger;
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::io::{Read, Write};
-use std::mem;
-use std::path::Path;
-use std::pin::Pin;
-use std::str::FromStr;
-use tokio::fs::create_dir;
-use tokio::fs::read_dir;
-use tokio::fs::File;
-use tokio::fs::OpenOptions;
-use tokio::prelude::*;
-use tokio::task;
+use std::{
+    collections::{
+        hash_map::DefaultHasher,
+        HashMap,
+    },
+    hash::{
+        Hash,
+        Hasher,
+    },
+    io::{
+        Read,
+        Write,
+    },
+    mem,
+    path::Path,
+    pin::Pin,
+    str::FromStr,
+};
+use tokio::{
+    fs::{
+        create_dir,
+        read_dir,
+        File,
+        OpenOptions,
+    },
+    prelude::*,
+    task,
+};
 
 pub struct FileStore {
     base_path: String,

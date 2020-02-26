@@ -1,37 +1,63 @@
-use crate::client::edge::Edge;
-use crate::client::page_info::PageInfo;
-use crate::context::Context;
-use juniper::meta::MetaType;
-use juniper::{Arguments, DefaultScalarValue, ExecutionResult, Executor, GraphQLType, Registry};
-use shelf_database::{Cache, CacheCollection, Document, Schema as DbSchema, Store};
-use std::sync::{Arc, RwLockReadGuard};
+use crate::{
+    client::{
+        edge::Edge,
+        page_info::PageInfo,
+    },
+    context::Context,
+};
+use futures::{
+    future::BoxFuture,
+    FutureExt,
+    StreamExt,
+};
+use juniper::{
+    meta::MetaType,
+    Arguments,
+    DefaultScalarValue,
+    ExecutionResult,
+    Executor,
+    GraphQLType,
+    GraphQLTypeAsync,
+    Registry,
+};
+use shelf_database::{
+    Cache,
+    CacheCollection,
+    Document,
+    Schema as DbSchema,
+    Store,
+};
+use std::sync::Arc;
 
-pub struct Connection<'a, C: Cache, S: Store> {
-    edges: Vec<Edge<'a, C, S>>,
+pub struct Connection<C: Cache, S: Store> {
+    edges: Vec<Edge<C, S>>,
     page_info: PageInfo,
     total_count: i32,
 }
 
-impl<'a, C: Cache, S: Store> Connection<'a, C, S> {
-    pub fn new<Ca: CacheCollection>(cache: &'a RwLockReadGuard<Ca>) -> Self {
+impl<C: Cache, S: Store> Connection<C, S> {
+    pub async fn new<Ca: CacheCollection>(cache: Ca) -> Connection<C, S> {
         let docs = cache.documents();
 
+        let edges = docs.take(100).then(Edge::new).collect().await;
+
         Self {
-            edges: docs.iter().take(100).map(|lock| Edge::new(&lock)).collect(),
+            edges,
             page_info: PageInfo {
                 has_next_page: false,
                 has_previous_page: false,
                 start_cursor: "".to_string(),
                 end_cursor: "".to_string(),
             },
-            total_count: docs.len() as i32,
+            // TODO: We need to get total count without exhausting the stream
+            total_count: 0,
         }
     }
 }
 
-impl<'a, C: Cache, S: Store> GraphQLType for Connection<'a, C, S> {
+impl<C: Cache, S: Store> GraphQLType for Connection<C, S> {
     type Context = Context<C, S>;
-    type TypeInfo = (&'a str, &'a str, &'a DbSchema);
+    type TypeInfo = (String, String, DbSchema);
 
     fn name(info: &Self::TypeInfo) -> Option<&str> {
         Some(&info.0)
@@ -44,7 +70,11 @@ impl<'a, C: Cache, S: Store> GraphQLType for Connection<'a, C, S> {
         let fields = vec![
             registry.field::<&Vec<Edge<C, S>>>(
                 "edges",
-                &(&info.0.replace("Connection", "Edge"), info.1, info.2),
+                &(
+                    info.0.replace("Connection", "Edge"),
+                    info.1.clone(),
+                    info.2.clone(),
+                ),
             ),
             registry.field::<&PageInfo>("pageInfo", &()),
             registry.field::<&i32>("totalCount", &()),
@@ -54,31 +84,36 @@ impl<'a, C: Cache, S: Store> GraphQLType for Connection<'a, C, S> {
             .build_object_type::<Connection<C, S>>(&info, &fields)
             .into_meta()
     }
+}
 
-    fn resolve_field(
-        &self,
-        info: &Self::TypeInfo,
-        field_name: &str,
-        _args: &Arguments,
-        executor: &Executor<Self::Context>,
-    ) -> ExecutionResult {
-        match field_name {
-            "edges" => executor.resolve_with_ctx(
-                &(
-                    info.0.replace("Connection", "Edge").as_str(),
-                    info.1,
-                    info.2,
+impl<C: Cache, S: Store> GraphQLTypeAsync<DefaultScalarValue> for Connection<C, S> {
+    fn resolve_field_async<'r>(
+        &'r self,
+        info: &'r Self::TypeInfo,
+        field_name: &'r str,
+        _args: &'r Arguments,
+        executor: &'r Executor<Self::Context>,
+    ) -> BoxFuture<ExecutionResult> {
+        async move {
+            match field_name {
+                "edges" => executor.resolve_with_ctx(
+                    &(
+                        info.0.replace("Connection", "Edge"),
+                        info.1.clone(),
+                        info.2.clone(),
+                    ),
+                    &self.edges,
                 ),
-                &self.edges,
-            ),
-            "pageInfo" => executor.resolve_with_ctx(&(), &self.page_info),
-            "totalCount" => executor.resolve_with_ctx(&(), &self.total_count),
-            _ => panic!("Field {} not found", field_name),
+                "pageInfo" => executor.resolve_with_ctx(&(), &self.page_info),
+                "totalCount" => executor.resolve_with_ctx(&(), &self.total_count),
+                _ => panic!("Field {} not found", field_name),
+            }
         }
+        .boxed()
     }
 }
 
-impl<'a, C: Cache, S: Store> From<Vec<Arc<Document>>> for Connection<'a, C, S> {
+impl<C: Cache, S: Store> From<Vec<Arc<Document>>> for Connection<C, S> {
     fn from(_value: Vec<Arc<Document>>) -> Self {
         unimplemented!()
     }
