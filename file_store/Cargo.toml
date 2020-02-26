@@ -19,6 +19,7 @@ serde_derive = "1.0.104"
 colored = "1.9.2"
 tokio = {version = "0.2.9", features = ["full"]}
 flate2 = "1.0.13"
+uuid = "0.8.1"
 
 shelf_config = { path = "../config" }
 shelf_database = { path = "../database" }

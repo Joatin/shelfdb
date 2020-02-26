@@ -7,10 +7,12 @@ use crate::{
 use failure::Error;
 use slog::Logger;
 use std::{
+    collections::HashMap,
     future::Future,
     pin::Pin,
     sync::Arc,
 };
+use uuid::Uuid;
 
 pub struct TestStore;
 
@@ -18,7 +20,7 @@ impl Store for TestStore {
     fn get_schemas(
         &self,
         _logger: &Logger,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Schema>, Error>> + Send>> {
+    ) -> Pin<Box<dyn Future<Output = Result<HashMap<Uuid, Schema>, Error>> + Send>> {
         unimplemented!()
     }
 

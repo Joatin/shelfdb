@@ -10,5 +10,6 @@ extern crate slog;
 extern crate failure;
 
 mod file_store;
+mod util;
 
 pub use self::file_store::FileStore;

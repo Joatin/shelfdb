@@ -63,7 +63,7 @@ impl Server {
         let (tx, rx) = channel::<()>();
 
         tokio::spawn(async move {
-            info!(logger, "Starting web server 🥳");
+            debug!(logger, "Starting web server");
             let addr = config.client_host()?;
             let other_logger = logger.clone();
 
@@ -96,7 +96,7 @@ impl Server {
 
             info!(
                 logger,
-                "Server listening on {} 🔗",
+                "🥳 Server ready for happy clients on {}",
                 format!("http://{}", addr).underline().bold().blue()
             );
             if let Err(e) = server.await {

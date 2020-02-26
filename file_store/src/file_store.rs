@@ -2,8 +2,6 @@ use colored::*;
 use failure::Error;
 use flate2::{
     read::GzDecoder,
-    write::GzEncoder,
-    Compression,
 };
 use futures::{
     future::join_all,
@@ -22,33 +20,35 @@ use shelf_database::{
 use slog::Logger;
 use std::{
     collections::{
-        hash_map::DefaultHasher,
         HashMap,
-    },
-    hash::{
-        Hash,
-        Hasher,
     },
     io::{
         Read,
-        Write,
     },
     mem,
     path::Path,
     pin::Pin,
-    str::FromStr,
     sync::Arc,
+    time::Instant,
 };
 use tokio::{
     fs::{
         create_dir,
         read_dir,
+        remove_file,
+        rename,
         File,
         OpenOptions,
     },
     prelude::*,
     task,
 };
+use uuid::Uuid;
+use crate::util::compute_hash_sum;
+use crate::util::write_compressed_file;
+use crate::util::extract_file_name;
+use crate::util::is_collection_file;
+use futures::future::BoxFuture;
 
 pub struct FileStore {
     base_path: String,
@@ -58,6 +58,11 @@ pub struct FileStore {
 
 impl FileStore {
     pub async fn new(logger: &Logger, config: &Config) -> Result<Self, Error> {
+        let b_path = Path::new(&config.data_folder);
+        if !b_path.is_dir() {
+            std::fs::create_dir(b_path)?;
+        }
+
         info!(logger, "Setting up file store"; "data_folder" => Path::new(&config.data_folder).canonicalize().unwrap().to_str().unwrap().to_owned());
 
         Ok(Self {
@@ -70,7 +75,7 @@ impl FileStore {
     async fn do_save_collections(&self, logger: &Logger) -> Result<(), Error> {
         let schemas = mem::replace(&mut *self.collections.lock().await, HashMap::new());
         for (schema_name, collections) in schemas {
-            info!(logger, "Saving collections for schema {}", schema_name);
+            debug!(logger, "Saving collections for schema {}", schema_name);
             let base_path = Path::new(&self.base_path).join(schema_name);
 
             if !base_path.is_dir() {
@@ -96,14 +101,15 @@ impl FileStore {
     }
 
     async fn do_save_documents(&self, logger: &Logger) -> Result<(), Error> {
+        let logger = logger.clone();
         let documents = mem::replace(&mut *self.documents.lock().await, HashMap::new());
         for (schema_name, collections) in documents {
             for (collection_name, documents) in collections {
                 info!(
                     logger,
                     "Saving documents for collection {} in schema {}",
-                    collection_name,
-                    &schema_name
+                    collection_name.yellow(),
+                    &schema_name.yellow()
                 );
                 let base_path = Path::new(&self.base_path)
                     .join(&schema_name)
@@ -125,25 +131,12 @@ impl FileStore {
                             .unwrap()
                             .starts_with(&format!("{}_", index))
                     }) {
-                        let file_name: String = dir
-                            .as_ref()
-                            .unwrap()
-                            .file_name()
-                            .to_str()
-                            .unwrap()
-                            .to_string();
-                        let hash = u64::from_str(
-                            file_name.split('_').collect::<Vec<_>>()[1]
-                                .split('.')
-                                .collect::<Vec<_>>()[0],
-                        )
-                        .unwrap();
-
+                        let (file_name, hash) = extract_file_name(&dir)?;
+                        if !is_collection_file(&file_name) {
+                            continue;
+                        }
                         let data = serde_json::to_string(&chunk).unwrap();
-
-                        let mut s = DefaultHasher::new();
-                        data.hash(&mut s);
-                        let sum = s.finish();
+                        let sum = compute_hash_sum(&data);
 
                         if sum == hash {
                             debug!(
@@ -154,36 +147,31 @@ impl FileStore {
                                 &schema_name
                             );
                         } else {
+                            let new_path = format!("{}~old", file_name);
+                            if rename(base_path.join(&file_name), base_path.join(&new_path))
+                                .await
+                                .is_ok()
+                            {
+                                debug!(
+                                    logger,
+                                    "Renamed old collection file in case all goes wrong"
+                                );
+                            } else {
+                                error!(logger, "Failed to rename old collection file"; "file_name" => &file_name);
+                                bail!("Failed to rename old collection file");
+                            }
+
                             let path = base_path.join(&format!("{}_{}.gz", index, sum));
-                            let mut file = OpenOptions::new()
-                                .write(true)
-                                .create(true)
-                                .open(path)
-                                .await?;
+                            write_compressed_file(&data, &path).await?;
 
-                            let mut e = GzEncoder::new(Vec::new(), Compression::default());
-                            e.write_all(data.as_bytes())?;
-
-                            file.write_all(&e.finish().unwrap()).await?;
+                            if remove_file(base_path.join(&new_path)).await.is_ok() {
+                                debug!(logger, "Removed old collection file");
+                            }
                         }
                     } else {
                         let data = serde_json::to_string(&chunk).unwrap();
-
-                        let mut s = DefaultHasher::new();
-                        data.hash(&mut s);
-                        let sum = s.finish();
-
-                        let path = base_path.join(&format!("{}_{}.gz", index, sum));
-                        let mut file = OpenOptions::new()
-                            .write(true)
-                            .create(true)
-                            .open(path)
-                            .await?;
-
-                        let mut e = GzEncoder::new(Vec::new(), Compression::default());
-                        e.write_all(data.as_bytes())?;
-
-                        file.write_all(&e.finish().unwrap()).await?;
+                        let path = base_path.join(&format!("{}_{}.gz", index, compute_hash_sum(&data)));
+                        write_compressed_file(&data, &path).await?;
                     }
                 }
             }
@@ -194,10 +182,10 @@ impl FileStore {
 }
 
 impl Store for FileStore {
-    fn get_schemas(
-        &self,
-        logger: &Logger,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Schema>, Error>> + Send>> {
+    fn get_schemas<'a>(
+        &'a self,
+        logger: &'a Logger,
+    ) -> BoxFuture<'a, Result<HashMap<Uuid, Schema>, Error>> {
         let logger = logger.clone();
         let base_path = self.base_path.clone();
 
@@ -214,7 +202,7 @@ impl Store for FileStore {
                 let mut contents = vec![];
                 file.read_to_end(&mut contents).await?;
 
-                match serde_json::from_slice::<Vec<Schema>>(&contents) {
+                match serde_json::from_slice::<HashMap<Uuid, Schema>>(&contents) {
                     Ok(result) => Ok(result),
                     Err(e) => {
                         crit!(logger, "Failed to parse schema file, perhaps the file has been corrupted?"; "error" => format!("{}", e));
@@ -223,7 +211,7 @@ impl Store for FileStore {
                 }
             } else {
                 warn!(logger, "No schemas file detected");
-                Ok(vec![])
+                Ok(HashMap::new())
             }
         }.boxed()
     }
@@ -331,46 +319,76 @@ impl Store for FileStore {
         }.boxed()
     }
 
-    fn save_schema(
-        &self,
-        logger: &Logger,
-        schema: &Schema,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
-        let logger = logger.new(
-            o!("schema_name" => schema.name.to_string(), "schema_id" => schema.id.to_string()),
-        );
-        let base_path = self.base_path.clone();
-        let schema = schema.clone();
-        let all_schemas_fut = self.get_schemas(&logger);
-
+    fn save_schema<'a>(
+        &'a self,
+        logger: &'a Logger,
+        schema: &'a Schema,
+    ) -> BoxFuture<'a, Result<(), Error>> {
         async move {
-            let mut schemas = all_schemas_fut.await?;
+            let logger = logger.new(
+                o!("schema_name" => schema.name.to_string(), "schema_id" => schema.id.to_string()),
+            );
+            let mut schemas = self.get_schemas(&logger).await?;
             let schema_name = schema.name.to_owned();
             let schema_id = schema.id.to_owned();
 
-            schemas.push(schema);
+            let base_path = Path::new(&self.base_path);
 
-            if !Path::new(&base_path).is_dir() {
-                create_dir(Path::new(&base_path)).await?;
+            schemas.insert(schema_id, schema.clone());
+
+            if !base_path.is_dir() {
+                info!(logger, "Root data folder is missing, creating it...");
+                create_dir(base_path).await?;
             }
 
-            let path = Path::new(&base_path).join("schemas.json");
+            let path = base_path.join("schemas.json");
+
+            if rename(path.clone(), base_path.join("schemas.json~old"))
+                .await
+                .is_ok()
+            {
+                debug!(logger, "Renamed old schema file in case all goes wrong");
+            }
+
             let mut file = OpenOptions::new()
                 .write(true)
-                .create(true)
+                .create_new(true)
                 .open(path)
                 .await?;
 
+            debug!(logger, "Opened handle to new schema file");
+
             let data = serde_json::to_string_pretty(&schemas)?;
+
+            trace!(
+                logger,
+                "New data to save in schema file is: {}",
+                serde_json::to_string(&schemas).unwrap()
+            );
 
             file.write_all(&data.as_bytes()).await?;
 
-            create_dir(Path::new(&base_path).join(&schema_name)).await?;
+            debug!(logger, "Successfully saved schema {}", &schema_name);
 
-            debug!(logger, "Saved schema \"{}\"", schema_name; "id" => schema_id.to_string(), "name" => &schema_name);
+            if remove_file(base_path.join("schemas.json~old"))
+                .await
+                .is_ok()
+            {
+                debug!(logger, "Removed old schema file");
+            }
+
+            if create_dir(base_path.join(&schema_name))
+                .await
+                .is_ok()
+            {
+                info!(logger, "Created new home dir for all collections");
+            }
+
+            debug!(logger, "Saved schema \"{}\"", schema_name);
 
             Ok(())
-        }.boxed()
+        }
+        .boxed()
     }
 
     fn save_collection<'a>(
@@ -425,9 +443,10 @@ impl Store for FileStore {
         logger: &'a Logger,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
         async move {
-            info!(logger, "Writing data to disk \u{1f4bf}");
+            let start_time = Instant::now();
             self.do_save_collections(&logger).await?;
             self.do_save_documents(&logger).await?;
+            info!(logger, "\u{1f4bf} Saved data to disk"; "save_time" => format!("{:#?}", Instant::now().duration_since(start_time)));
             Ok(())
         }
         .boxed()

@@ -81,7 +81,7 @@ where
             let schemas = store.get_schemas(&logger).await?;
             info!(logger, "Info found {} schemas", schemas.len());
 
-            for schema in schemas {
+            for (_id, schema) in schemas {
                 info!(logger, "Fetching collection for schema {}", schema.name);
                 let collections = store.get_collections(&logger, &schema).await?;
                 info!(logger, "Info found {} collections for schema {}", collections.len(), schema.name);

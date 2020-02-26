@@ -11,6 +11,7 @@ use juniper::{
     DefaultScalarValue,
     ExecutionResult,
     Executor,
+    FieldError,
     GraphQLType,
     Registry,
     Type,
@@ -106,7 +107,16 @@ impl<C: Cache, S: Store> GraphQLType for Collection<C, S> {
                     .find(|i| field_name == to_camel_case(&i.name))
                 {
                     return match self.document.fields.get(&field.name) {
-                        None => executor.resolve_with_ctx(&(), &Option::<String>::None),
+                        None => {
+                            if let graphql_parser::schema::Type::NonNullType(_) = field.field_type {
+                                error!(executor.context().logger, "The field was missing in the db, even though it was required...");
+                                return Err(FieldError::new(
+                                    "Missing field",
+                                    graphql_value!({ "internal_error": "The field was missing in the db, even though it was required..." }),
+                                ));
+                            }
+                            executor.resolve_with_ctx(&(), &Option::<String>::None)
+                        }
                         Some(value) => match value {
                             Value::Null => executor.resolve_with_ctx(&(), &Option::<String>::None),
                             Value::Bool(v) => executor.resolve_with_ctx(&(), &v),

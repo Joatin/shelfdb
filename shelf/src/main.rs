@@ -30,34 +30,38 @@ async fn main() -> Result<(), Error> {
         .level(Severity::Trace)
         .build()
         .unwrap();
-    if let Ok(config) = Config::load(&temp_log) {
-        drop(temp_log);
-        let logger = TerminalLoggerBuilder::new()
-            .level(Severity::from_str(&config.log_level).expect("Got invalid log level"))
-            .build()
-            .unwrap();
+    info!(temp_log, "🎉 Starting SHELF");
+    match Config::load(&temp_log) {
+        Ok(config) => {
+            drop(temp_log);
+            let logger = TerminalLoggerBuilder::new()
+                .level(Severity::from_str(&config.log_level).expect("Got invalid log level"))
+                .build()
+                .unwrap();
 
-        info!(logger, "Starting SHELF 🎉");
-        debug!(
-            logger,
-            "Running on: {} {}",
-            sys_info::os_type().unwrap().yellow(),
-            sys_info::os_release().unwrap().yellow()
-        );
-        let store = FileStore::new(&logger, &config).await?;
-        let cache = MemoryCache::new(&logger).await?;
-        let database = Database::new(&logger, store, cache).await?;
-        let server = Server::start(&logger, &config, database).await?;
+            debug!(
+                logger,
+                "Running on: {} {}",
+                sys_info::os_type().unwrap().yellow(),
+                sys_info::os_release().unwrap().yellow()
+            );
+            let store = FileStore::new(&logger, &config).await?;
+            let cache = MemoryCache::new(&logger).await?;
+            let database = Database::new(&logger, &config, store, cache).await?;
+            let server = Server::start(&logger, &config, database).await?;
 
-        signal_guard.at_exit(move |_sig| {
-            info!(logger, "{}", "Initiating shutdown... ↘️".cyan());
-            server.stop();
-            info!(logger, "Bye, Bye! 👋");
-        });
-    } else {
-        drop(temp_log);
-        // we want to exit with a non zero exit code, since the configuration was faulty
-        process::exit(1);
+            signal_guard.at_exit(move |_sig| {
+                info!(logger, "{}", "↘️ Initiating shutdown...".cyan());
+                server.stop();
+                info!(logger, "👋 Bye, Bye!");
+            });
+        }
+        Err(err) => {
+            error!(temp_log, "Failed to load config"; "error" => format!("{}", err));
+            drop(temp_log);
+            // we want to exit with a non zero exit code, since the configuration was faulty
+            process::exit(1);
+        }
     }
 
     Ok(())

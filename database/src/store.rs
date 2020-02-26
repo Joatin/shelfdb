@@ -7,15 +7,18 @@ use failure::Error;
 use futures::Future;
 use slog::Logger;
 use std::{
+    collections::HashMap,
     pin::Pin,
     sync::Arc,
 };
+use uuid::Uuid;
+use futures::future::BoxFuture;
 
 pub trait Store: Sync + Send + 'static {
-    fn get_schemas(
-        &self,
-        logger: &Logger,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Schema>, Error>> + Send>>;
+    fn get_schemas<'a>(
+        &'a self,
+        logger: &'a Logger,
+    ) -> BoxFuture<'a, Result<HashMap<Uuid, Schema>, Error>>;
     fn get_collections(
         &self,
         logger: &Logger,
@@ -27,11 +30,11 @@ pub trait Store: Sync + Send + 'static {
         schema: &Schema,
         collection: &Collection,
     ) -> Pin<Box<dyn Future<Output = Result<Vec<Document>, Error>> + Send>>;
-    fn save_schema(
-        &self,
-        logger: &Logger,
-        schema: &Schema,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>;
+    fn save_schema<'a>(
+        &'a self,
+        logger: &'a Logger,
+        schema: &'a Schema,
+    ) -> BoxFuture<'a, Result<(), Error>>;
     fn save_collection<'a>(
         &'a self,
         logger: &'a Logger,

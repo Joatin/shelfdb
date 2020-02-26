@@ -2,9 +2,12 @@ use colored::*;
 use config::Config as CConfig;
 use failure::Error;
 use slog::Logger;
-use std::net::SocketAddr;
+use std::{
+    net::SocketAddr,
+    time::Duration,
+};
 
-#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[derive(Clone, Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
     pub data_folder: String,
@@ -12,6 +15,8 @@ pub struct Config {
     pub admin_server_port: u16,
     pub host: String,
     pub log_level: String,
+    #[serde(with = "serde_humanize_rs")]
+    pub save_interval: Duration,
 }
 
 /// The configuration object for the Shelf database. This struct holds all
@@ -61,6 +66,7 @@ impl Config {
         config.set_default("adminServerPort", 5601)?;
         config.set_default("host", "127.0.0.1")?;
         config.set_default("logLevel", "info")?;
+        config.set_default("saveInterval", "30s")?;
 
         Ok(())
     }
