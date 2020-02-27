@@ -1,0 +1,21 @@
+
+
+.footer {
+  background-color: gray;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
+.copyrightRow {
+  padding: 2em 0;
+}
+
+.links {
+  padding: 2em 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-auto-flow: row;
+}

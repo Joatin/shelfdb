@@ -1,0 +1,38 @@
+
+
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  min-height: 4em;
+  height: 4em;
+  background-color: rgba(45, 44, 44, 0.5);
+}
+
+.itemMain {
+  height: 4em;
+  line-height: 4em;
+  text-decoration: none;
+  padding: 0 1em;
+  box-sizing: content-box;
+
+  & > span {
+    font-size: 2em;
+    color: white;
+  }
+}
+
+.item {
+  height: 4em;
+  line-height: 4em;
+  text-decoration: none;
+  padding: 0 1em;
+  box-sizing: content-box;
+
+  & > span {
+    font-size: 1.5em;
+    color: white;
+  }
+}
