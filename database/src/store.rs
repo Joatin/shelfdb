@@ -4,7 +4,10 @@ use crate::{
     Schema,
 };
 use failure::Error;
-use futures::Future;
+use futures::{
+    future::BoxFuture,
+    Future,
+};
 use slog::Logger;
 use std::{
     collections::HashMap,
@@ -12,7 +15,6 @@ use std::{
     sync::Arc,
 };
 use uuid::Uuid;
-use futures::future::BoxFuture;
 
 pub trait Store: Sync + Send + 'static {
     fn get_schemas<'a>(

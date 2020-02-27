@@ -3,14 +3,14 @@ use flate2::{
     write::GzEncoder,
     Compression,
 };
-use std::path::Path;
-use std::io::Write;
-use tokio::{
-    fs::{
-        OpenOptions,
-    }
+use std::{
+    io::Write,
+    path::Path,
 };
-use tokio::io::AsyncWriteExt;
+use tokio::{
+    fs::OpenOptions,
+    io::AsyncWriteExt,
+};
 
 pub async fn write_compressed_file(data: &str, path: &Path) -> Result<(), Error> {
     let mut file = OpenOptions::new()

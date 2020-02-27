@@ -1,10 +1,17 @@
+use crate::util::{
+    compute_hash_sum,
+    extract_file_name,
+    is_collection_file,
+    write_compressed_file,
+};
 use colored::*;
 use failure::Error;
-use flate2::{
-    read::GzDecoder,
-};
+use flate2::read::GzDecoder;
 use futures::{
-    future::join_all,
+    future::{
+        join_all,
+        BoxFuture,
+    },
     lock::Mutex,
     stream::StreamExt,
     Future,
@@ -19,12 +26,8 @@ use shelf_database::{
 };
 use slog::Logger;
 use std::{
-    collections::{
-        HashMap,
-    },
-    io::{
-        Read,
-    },
+    collections::HashMap,
+    io::Read,
     mem,
     path::Path,
     pin::Pin,
@@ -44,11 +47,6 @@ use tokio::{
     task,
 };
 use uuid::Uuid;
-use crate::util::compute_hash_sum;
-use crate::util::write_compressed_file;
-use crate::util::extract_file_name;
-use crate::util::is_collection_file;
-use futures::future::BoxFuture;
 
 pub struct FileStore {
     base_path: String,
@@ -170,7 +168,8 @@ impl FileStore {
                         }
                     } else {
                         let data = serde_json::to_string(&chunk).unwrap();
-                        let path = base_path.join(&format!("{}_{}.gz", index, compute_hash_sum(&data)));
+                        let path =
+                            base_path.join(&format!("{}_{}.gz", index, compute_hash_sum(&data)));
                         write_compressed_file(&data, &path).await?;
                     }
                 }
@@ -377,10 +376,7 @@ impl Store for FileStore {
                 debug!(logger, "Removed old schema file");
             }
 
-            if create_dir(base_path.join(&schema_name))
-                .await
-                .is_ok()
-            {
+            if create_dir(base_path.join(&schema_name)).await.is_ok() {
                 info!(logger, "Created new home dir for all collections");
             }
 
