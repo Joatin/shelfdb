@@ -1,3 +1,13 @@
 target/
 .shelf_data/
 .idea/
+node_modules/
+docs/
+.github/
+package.json
+yarn.lock
+shelf.yml
+README.md
+LICENSE
+CODE_OF_CONDUCT.md
+.lintstagedrc.js

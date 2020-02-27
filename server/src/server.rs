@@ -64,7 +64,7 @@ impl Server {
 
         tokio::spawn(async move {
             debug!(logger, "Starting web server");
-            let addr = config.client_host()?;
+            let addr = config.host()?;
             let other_logger = logger.clone();
 
             let admin_root_node = Self::build_admin_root_node();
