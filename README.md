@@ -5,7 +5,7 @@
   The GraphQL database. Makes storing data easy!
 </p>
 
-[![Build](https://github.com/Joatin/shelf/workflows/Build/badge.svg)](https://github.com/Joatin/shelf/actions) [![Netlify Status](https://api.netlify.com/api/v1/badges/742cfb92-fe6e-49e6-9f35-697ce0ed181c/deploy-status)](https://app.netlify.com/sites/shelfdb/deploys)
+[![Build](https://github.com/Joatin/shelf/workflows/Build/badge.svg)](https://github.com/Joatin/shelf/actions)
 
 ## About
 Shelf is a database written in rust and that uses GraphQL for it's api and migrations. Graphql makes it easy to 
