@@ -5,11 +5,10 @@ use crate::{
     Store,
 };
 use failure::Error;
+use futures::future::BoxFuture;
 use slog::Logger;
 use std::{
     collections::HashMap,
-    future::Future,
-    pin::Pin,
     sync::Arc,
 };
 use uuid::Uuid;
@@ -17,10 +16,7 @@ use uuid::Uuid;
 pub struct TestStore;
 
 impl Store for TestStore {
-    fn get_schemas(
-        &self,
-        _logger: &Logger,
-    ) -> Pin<Box<dyn Future<Output = Result<HashMap<Uuid, Schema>, Error>> + Send>> {
+    fn get_schemas(&self, _logger: &Logger) -> BoxFuture<Result<HashMap<Uuid, Schema>, Error>> {
         unimplemented!()
     }
 
@@ -28,7 +24,7 @@ impl Store for TestStore {
         &self,
         _logger: &Logger,
         _schema: &Schema,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Collection>, Error>> + Send>> {
+    ) -> BoxFuture<Result<Vec<Collection>, Error>> {
         unimplemented!()
     }
 
@@ -37,15 +33,11 @@ impl Store for TestStore {
         _logger: &Logger,
         _schema: &Schema,
         _collection: &Collection,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Document>, Error>> + Send>> {
+    ) -> BoxFuture<Result<Vec<Document>, Error>> {
         unimplemented!()
     }
 
-    fn save_schema(
-        &self,
-        _logger: &Logger,
-        _schema: &Schema,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+    fn save_schema(&self, _logger: &Logger, _schema: &Schema) -> BoxFuture<Result<(), Error>> {
         unimplemented!()
     }
 
@@ -54,7 +46,7 @@ impl Store for TestStore {
         _logger: &'a Logger,
         _schema: &'a Schema,
         _collection: &'a Collection,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+    ) -> BoxFuture<Result<(), Error>> {
         unimplemented!()
     }
 
@@ -64,14 +56,11 @@ impl Store for TestStore {
         _schema: &'a Schema,
         _collection: &'a Collection,
         _document: Arc<Document>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+    ) -> BoxFuture<Result<(), Error>> {
         unimplemented!()
     }
 
-    fn flush<'a>(
-        &'a self,
-        _logger: &'a Logger,
-    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+    fn flush<'a>(&'a self, _logger: &'a Logger) -> BoxFuture<Result<(), Error>> {
         unimplemented!()
     }
 }

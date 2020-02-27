@@ -4,7 +4,7 @@ use crate::util::{
     is_collection_file,
     write_compressed_file,
 };
-use colored::*;
+use colored::Colorize;
 use failure::Error;
 use flate2::read::GzDecoder;
 use futures::{
@@ -55,6 +55,10 @@ pub struct FileStore {
 }
 
 impl FileStore {
+    /// Created a new file store
+    ///
+    /// # Errors
+    /// Might return an error if it can not create the needed data folder
     pub async fn new(logger: &Logger, config: &Config) -> Result<Self, Error> {
         let b_path = Path::new(&config.data_folder);
         if !b_path.is_dir() {
