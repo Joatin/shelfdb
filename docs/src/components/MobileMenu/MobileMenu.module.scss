@@ -8,6 +8,7 @@ $mobile-menu-height: 4em;
 
   @supports (margin-bottom: env(safe-area-inset-bottom)) {
     margin-bottom: env(safe-area-inset-bottom);
+    height: calc(4em + env(safe-area-inset-bottom));
   }
 
   @media (min-width: 640px) {
