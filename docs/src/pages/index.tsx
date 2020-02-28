@@ -17,7 +17,7 @@ export default class IndexPage extends Component {
           <h1>The power of GraphQL</h1>
           <p>Shelf is built around the concept of GraphQL. You define your resources with GraphQL and that is also the way you query it.</p>
         </UndrawSection>
-        <UndrawSection color={'lightgray'} undraw={UndrawLighthouse} right={true}>
+        <UndrawSection color={'#fafafa'} undraw={UndrawLighthouse} right={true}>
           <h1>The Ultimate Developer Experience</h1>
           <p>Shelf is super easy to get started with. You just define your resources and everything works. Then you can use the GraphQL schema to generate a client with whatever tool you want for any language you want</p>
         </UndrawSection>

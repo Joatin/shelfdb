@@ -65,6 +65,17 @@ $header-height: 4em;
   flex: 1;
 }
 
+@keyframes wobble {
+  0% { transform: rotate(0deg); }
+  1% { transform: rotate(-10deg); }
+  2% { transform: rotate(10deg); }
+  3% { transform: rotate(-10deg); }
+  4% { transform: rotate(10deg); }
+  5% { transform: rotate(-10deg); }
+  6% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
 .github {
   height: 4em;
   line-height: 4em;
@@ -74,6 +85,14 @@ $header-height: 4em;
   display: flex;
   flex-direction: column;
   justify-content: center;
+
+  & > * {
+    animation-duration: 7s;
+    animation-fill-mode: both;
+    animation-name: wobble;
+    animation-iteration-count: infinite;
+    animation-delay: 1s;
+  }
 
   &:hover, &:active {
     background-color: darken($primary-color, 10%);

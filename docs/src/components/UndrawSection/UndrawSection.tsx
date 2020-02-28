@@ -19,7 +19,7 @@ export default class UndrawSection extends Component<UndrawSectionProps> {
       <Section {...this.props}>
         <div className={styles.container}>
           <div style={{order: right ? 3 : 1}}>
-            <Undraw primaryColor={'#A43931'} />
+            <Undraw primaryColor={'#357a92'} />
           </div>
           <div style={{order: 2}}>
             {children}
