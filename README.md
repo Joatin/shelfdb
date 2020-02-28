@@ -5,7 +5,7 @@
   The GraphQL database. Makes storing data easy!
 </h3>
 
-[![Build](https://github.com/Joatin/shelf/workflows/Build/badge.svg)](https://github.com/Joatin/shelf/actions) [![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/joatin/shelfdb)](https://hub.docker.com/r/joatin/shelfdb) [![Docker Pulls](https://img.shields.io/docker/pulls/joatin/shelfdb)](https://hub.docker.com/r/joatin/shelfdb) [![MicroBadger Size](https://img.shields.io/microbadger/image-size/joatin/shelfdb)](https://hub.docker.com/r/joatin/shelfdb)
+[![Build](https://github.com/Joatin/shelf/workflows/Build/badge.svg)](https://github.com/Joatin/shelf/actions) [![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/joatin/shelfdb)](https://hub.docker.com/r/joatin/shelfdb) [![Docker Pulls](https://img.shields.io/docker/pulls/joatin/shelfdb)](https://hub.docker.com/r/joatin/shelfdb) [![MicroBadger Size](https://img.shields.io/microbadger/image-size/joatin/shelfdb/latest)](https://hub.docker.com/r/joatin/shelfdb)
 
 #### DISCLAIMER: This project is currently in *ALPHA*
 
