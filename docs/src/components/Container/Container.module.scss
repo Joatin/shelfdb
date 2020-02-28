@@ -7,6 +7,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 
   @media (max-width: 1280px) {
@@ -21,7 +22,8 @@
 
   @media (max-width: 640px) {
     max-width: 100%;
-    margin: 0 .5em;
+    margin: 0;
+    padding: 0 .5em;
   }
 }
 
