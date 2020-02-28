@@ -5,6 +5,13 @@ import Header from "../Header/Header";
 
 import 'normalize.css';
 import Footer from "../Footer";
+import MobileMenu from "../MobileMenu";
+import { library } from '@fortawesome/fontawesome-svg-core';
+import {fab} from "@fortawesome/free-brands-svg-icons";
+import {fas} from "@fortawesome/free-solid-svg-icons";
+import styles from './Layout.module.scss';
+
+library.add(fab, fas);
 
 interface LayoutProps {
   lang?: string,
@@ -29,11 +36,13 @@ export default class Layout extends Component<LayoutProps> {
           }
         `}
         render={data => (
-          <div>
+          <div className={styles.container}>
             <SEO {...this.props} title={title || data.site.siteMetadata.title}/>
             <Header title={data.site.siteMetadata.title} />
             {children}
+            <div className={styles.spacer}/>
             <Footer/>
+            <MobileMenu />
           </div>
         )}
       />

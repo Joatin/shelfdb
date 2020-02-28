@@ -1,0 +1,22 @@
+
+.spacer {
+  flex: 1;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.contentContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+}
+
+.mdContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}

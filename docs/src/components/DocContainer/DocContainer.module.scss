@@ -1,8 +1,8 @@
 
 
 .container {
-  max-width: 1280px;
-  width: 1280px;
+  max-width: 960px;
+  width: 960px;
   margin: 0 auto;
   flex: 1;
   display: flex;
@@ -10,11 +10,6 @@
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 
   @media (max-width: 1280px) {
-    max-width: 960px;
-    width: 960px;
-  }
-
-  @media (max-width: 960px) {
     max-width: 640px;
     width: 640px;
   }

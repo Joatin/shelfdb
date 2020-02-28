@@ -1,0 +1,65 @@
+@import "../../partials/variables";
+
+$mobile-menu-height: 4em;
+
+.mobileMenuPlaceHolder {
+  height: $mobile-menu-height;
+  min-height: $mobile-menu-height;
+
+  @supports (margin-bottom: env(safe-area-inset-bottom)) {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+
+  @media (min-width: 640px) {
+    display: none;
+  }
+}
+
+.mobileMenu {
+  font-family: 'Roboto';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: $mobile-menu-height;
+  background-color: white;
+  border-top: .2em $primary-color solid;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+
+  @supports (margin-bottom: env(safe-area-inset-bottom)) {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+
+  @media (min-width: 640px) {
+    display: none;
+  }
+}
+
+.item {
+  height: $mobile-menu-height;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 6em;
+  justify-content: center;
+  text-decoration: none;
+
+  &:hover {
+    background-color: #efefef;
+  }
+
+  &:active {
+    background-color: #efefef;
+  }
+
+  & > span {
+    color: $primary-color;
+    margin: .5em auto 0;
+  }
+
+  & > svg {
+    margin: 0 auto;
+  }
+}

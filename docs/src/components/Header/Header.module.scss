@@ -1,22 +1,37 @@
+@import "../../partials/variables";
 
+$header-height: 4em;
+
+.headerPlaceHolder {
+  min-height: $header-height;
+  height: $header-height;
+}
 
 .header {
+  font-family: 'Roboto';
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1;
-  min-height: 4em;
-  height: 4em;
-  background-color: rgba(45, 44, 44, 0.5);
+  min-height: $header-height;
+  height: $header-height;
+  background-color: $primary-color;
+  border-bottom: solid $primary-color-dark .1em;
+  display: flex;
+  flex-direction: row;
 }
 
 .itemMain {
   height: 4em;
   line-height: 4em;
   text-decoration: none;
-  padding: 0 1em;
+  padding: 0 2em;
   box-sizing: content-box;
+
+  &:hover, &:active {
+    background-color: darken($primary-color, 10%);
+  }
 
   & > span {
     font-size: 2em;
@@ -28,11 +43,39 @@
   height: 4em;
   line-height: 4em;
   text-decoration: none;
-  padding: 0 1em;
+  padding: 0 2em;
   box-sizing: content-box;
 
+  &:hover, &:active {
+    background-color: darken($primary-color, 10%);
+  }
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+
   & > span {
-    font-size: 1.5em;
+    font-size: 1.3em;
     color: white;
+    font-weight: 300;
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.github {
+  height: 4em;
+  line-height: 4em;
+  text-decoration: none;
+  padding: 0 1em;
+  box-sizing: content-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  &:hover, &:active {
+    background-color: darken($primary-color, 10%);
   }
 }

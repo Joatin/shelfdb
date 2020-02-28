@@ -4,6 +4,7 @@ import 'react-typist/dist/Typist.css';
 
 import styles from './Hero.module.scss';
 import Container from "../Container/Container";
+import {Link} from "gatsby";
 
 export default class Hero extends Component {
   render() {
@@ -14,6 +15,7 @@ export default class Hero extends Component {
             <div className={styles.titleSection}>
               <h1 className={styles.heroTile}>Shelf</h1>
               <h2 className={styles.heroSubTile}>The GraphQL Database!</h2>
+              <Link to={'/docs/installation'} className={styles.heroButton}><span>Install now</span></Link>
             </div>
             <div className={styles.demoSection}>
               <div className={styles.demo}>

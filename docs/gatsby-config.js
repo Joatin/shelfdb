@@ -1,8 +1,22 @@
+
 module.exports = {
   siteMetadata: {
     title: `Shelf`,
     description: `The GraphQL Database!`,
     author: `Joatin Granlund <granlundjoatin@icloud.com>`,
+    repository: `https://github.com/Joatin/shelfdb`,
+    menuLinks:[
+      {
+        name:'Docs',
+        link:'/docs',
+        icon: 'book'
+      },
+      {
+        name:'Blog',
+        link:'/blog',
+        icon: 'rss'
+      }
+    ]
   },
   plugins: [
     `gatsby-plugin-react-helmet`,
@@ -29,16 +43,15 @@ module.exports = {
         icon: `src/images/gatsby-icon.png`, // This path is relative to the root of the site.
       },
     },
+    `gatsby-plugin-mdx`,
     {
       resolve: `gatsby-source-filesystem`,
       options: {
         name: `docs`,
-        path: `${__dirname}/src/docs/`,
+        path: `${__dirname}/src/docs`,
       },
     },
-    `gatsby-plugin-mdx`
-    // this (optional) plugin enables Progressive Web App + Offline functionality
-    // To learn more, visit: https://gatsby.dev/offline
-    // `gatsby-plugin-offline`,
+    `gatsby-plugin-netlify`,
+    `gatsby-plugin-offline`,
   ],
 }
