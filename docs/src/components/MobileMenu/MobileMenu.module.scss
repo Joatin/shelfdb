@@ -28,8 +28,9 @@ $mobile-menu-height: 4em;
   flex-direction: row;
   width: 100%;
 
-  @supports (margin-bottom: env(safe-area-inset-bottom)) {
-    margin-bottom: env(safe-area-inset-bottom);
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc($mobile-menu-height + env(safe-area-inset-bottom));
   }
 
   @media (min-width: 640px) {

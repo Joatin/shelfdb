@@ -2,11 +2,10 @@
 
 .hero {
   width: 100%;
-  top: 0;
   background: $primary-color;
   background: linear-gradient(to right, $accent-color, $primary-color);
 
-  display: flex;
+  display: block;
   flex-direction: row;
 }
 
