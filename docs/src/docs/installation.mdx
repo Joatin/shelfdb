@@ -3,4 +3,29 @@ path: /docs/installation
 title: Installation
 ---
 
-# Installation
+# Installation - WIP
+
+# Using Helm
+The probably easiest way to install Shelfdb into your cluster is to use the provided helm script. You need to have Helm 
+and Tiller installed first ([How ti install](https://helm.sh/docs/intro/quickstart/))
+
+Once you have Tiller setup in you cluster by running ```helm init``` you can run our helm script
+
+````shell script
+helm install --repo https://github.com/Joatin/shelfdb shelfdb
+````
+
+# Locally using Docker Compose
+
+Add the following to a local file called ```docker-compose.yaml```
+
+```yaml
+version: '3'
+services:
+  web:
+    image: "joatin/shelfdb:latest"
+    ports:
+      - "5600:5600"
+```
+
+Now you can start your database by simple running ```docker-compose up```
