@@ -3,11 +3,11 @@ entries:
   shelfdb:
   - apiVersion: v1
     appVersion: "1.0"
-    created: "2020-02-29T22:26:29.258967+01:00"
+    created: "2020-02-29T22:30:55.537154+01:00"
     description: The GraphQL Database!
-    digest: a1556d5044036e73202822940326fa6bc5a497fa09048edc4262573bb5f6dbd0
+    digest: e36fc20c1d20944f860165caed6f509d9b2ab551e7369b2b7aa80c9d3e9128d9
     name: shelfdb
     urls:
     - https://shelfdb.netlify.com/shelfdb-0.1.0.tgz
     version: 0.1.0
-generated: "2020-02-29T22:26:29.258085+01:00"
+generated: "2020-02-29T22:30:55.535471+01:00"
