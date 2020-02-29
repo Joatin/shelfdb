@@ -1,0 +1,9 @@
+[build]
+    base = "docs/"
+    publish = "public/"
+    command = "yarn build"
+    ignore = "git diff --quiet HEAD^ HEAD docs/ && git diff --quiet HEAD^ HEAD charts/dist/"
+
+[build.processing]
+    skip_processing = true
+

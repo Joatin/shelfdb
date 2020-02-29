@@ -8,7 +8,8 @@
     ]
   },
   "scripts": {
-    "start": "cd docs && yarn start"
+    "start": "cd docs && yarn start",
+    "helm:package": "helm package ./charts/shelfdb -d ./charts/dist && helm repo index ./charts/dist --url https://shelfdb.netlify.com"
   },
   "devDependencies": {
     "husky": "^4.2.3",

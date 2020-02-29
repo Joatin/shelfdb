@@ -1,6 +1,6 @@
 version: '3'
 services:
-  web:
+  shelfdb:
     build: .
     ports:
       - "5600:5600"

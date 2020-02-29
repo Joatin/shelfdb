@@ -9,7 +9,7 @@ export default class MobileMenu extends Component {
   render() {
     return (
       <>
-        <div className={styles.mobileMenuPlaceHolder} />
+        <div className={styles.mobileMenuPlaceHolder}><div /></div>
         <StaticQuery
           query={graphql`
           query MobileMenuQuery {
