@@ -13,6 +13,6 @@ jobs:
       - name: Build docker image
         run: docker build . --tag joatin/shelfdb:nightly
       - name: Docker login
-        run: docker login -u joatin -p $DOCKER_HUB_TOKEN
+        run: docker login -u joatin -p ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: Push docker image
         run: docker push joatin/shelfdb:nightly
