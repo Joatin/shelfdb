@@ -11,6 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build docker image
-        run: docker build . --tag joatin/shelfdb:$(date +%s) --tag joatin/shelfdb:nightly
+        run: docker build . --tag joatin/shelfdb:nightly
       - name: Push docker image
-        run: docker psuh joatin/shelfdb:$(date +%s)
+        run: docker push joatin/shelfdb:nightly
