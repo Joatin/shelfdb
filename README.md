@@ -21,6 +21,29 @@ client for you. You can use JavaScript, TypeScript, Java, C#, Rust, Go and proba
 The GraphQL api is compatible with both the Apollo standard and Facebooks Relay specification. Most list resources are 
 paginated using cursor based pagination
 
+## Installation
+
+#### Helm
+The simplest way to add Shelfdb to you cluster is by using our helm script. Assuming you have helm installed 
+([How to install](https://helm.sh/docs/intro/quickstart/)), you can simple run the following command and you will be all set
+
+```shell script
+helm install --repo https://shelfdb.netlify.com shelfdb
+```
+
+#### Docker Compose
+
+You can also run Shelfdb locally using the following docker compose file. Really nice for some local experimentation
+
+```yaml
+version: '3'
+services:
+  shelfdb:
+    image: "joatin/shelfdb:latest"
+    ports:
+      - "5600:5600"
+```
+
 ## Roadmap
  - [x] Disk File Store
  - [x] GraphQL Resource Specifications
@@ -29,10 +52,6 @@ paginated using cursor based pagination
  - [ ] S3 File Store
  - [ ] GraphQL Subscriptions
  - [ ] Clustering
-
-## Installation
-Shelf is currently under heavy development. Once it reaches alpha it will be deployed through docker hub. As of now you 
-can clone this repo and build the source locally through ```cargo run```
 
 ## License
 See [LICENSE](LICENSE)
