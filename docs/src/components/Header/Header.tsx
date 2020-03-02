@@ -3,6 +3,7 @@ import styles from './Header.module.scss';
 import {graphql, Link, StaticQuery} from "gatsby";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import { faGithub } from '@fortawesome/free-brands-svg-icons'
+import {OutboundLink} from "gatsby-plugin-google-analytics";
 
 const headerQuery = graphql`
   query HeaderQuery {
@@ -43,10 +44,10 @@ export default class Header extends Component<HeaderProps> {
                 </Link>
               )) }
               <div className={styles.spacer}/>
-              <a
+              <OutboundLink
                 href={data.site.siteMetadata.repository}
                 className={styles.github}
-              ><FontAwesomeIcon size={'2x'} icon={faGithub} color={'white'} /></a>
+              ><FontAwesomeIcon size={'2x'} icon={faGithub} color={'white'} /></OutboundLink>
             </div>
           )}
         />

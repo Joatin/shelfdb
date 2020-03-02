@@ -2,6 +2,7 @@ import React, {Component} from "react";
 import Container from "../Container";
 import styles from './Footer.module.scss';
 import {Link} from "gatsby";
+import {OutboundLink} from "gatsby-plugin-google-analytics";
 
 
 export default class Footer extends Component {
@@ -17,8 +18,8 @@ export default class Footer extends Component {
                 <Link to={'/docs/installation'}>Installation</Link>
               </div>
               <div className={styles.linksContainer}>
-                <a href={'https://github.com/Joatin/shelfdb'}>Github</a>
-                <a href={'https://hub.docker.com/r/joatin/shelfdb'}>Docker</a>
+                <OutboundLink href={'https://github.com/Joatin/shelfdb'}>Github</OutboundLink>
+                <OutboundLink href={'https://hub.docker.com/r/joatin/shelfdb'}>Docker</OutboundLink>
               </div>
             </div>
             <div className={styles.copyrightRow}>
