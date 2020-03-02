@@ -11,8 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build docker image
-        run: DOCKER_BUILDKIT=1 docker build . --tag joatin/shelfdb:nightly
+        run: DOCKER_BUILDKIT=1 docker build --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` --build-arg VCS_REF=`git rev-parse --short HEAD` --build-arg VERSION=`git rev-parse --short HEAD` . --tag joatin/shelfdb:nightly
       - name: Docker login
         run: docker login -u joatin -p ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: Push docker image
         run: docker push joatin/shelfdb:nightly
+      - name: Update badges
+        run: curl -d '' https://hooks.microbadger.com/images/joatin/shelfdb/gdgxwuKmD7nnX5j3H4mOZhvIhPc=

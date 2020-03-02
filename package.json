@@ -10,7 +10,7 @@
   "scripts": {
     "start:docs": "cd docs && yarn start",
     "start": "cargo run",
-    "build": "DOCKER_BUILDKIT=1 docker build .",
+    "build": "DOCKER_BUILDKIT=1 docker build --build-arg BUILD_DATE=`date -u +\"%Y-%m-%dT%H:%M:%SZ\"` --build-arg VCS_REF=`git rev-parse --short HEAD` --build-arg VERSION=`git rev-parse --short HEAD` .",
     "helm:package": "helm package ./charts/shelfdb -d ./charts/dist && helm repo index --merge ./charts/dist/index.yaml ./charts/dist --url https://shelfdb.netlify.com"
   },
   "devDependencies": {
