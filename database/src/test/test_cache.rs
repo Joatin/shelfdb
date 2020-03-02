@@ -9,7 +9,11 @@ use crate::{
     Store,
 };
 use failure::Error;
-use futures::{future::BoxFuture, stream::BoxStream, FutureExt};
+use futures::{
+    future::BoxFuture,
+    stream::BoxStream,
+    FutureExt,
+};
 use slog::Logger;
 use std::{
     future::Future,

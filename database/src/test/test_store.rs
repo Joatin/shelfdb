@@ -5,14 +5,16 @@ use crate::{
     Store,
 };
 use failure::Error;
-use futures::future::BoxFuture;
+use futures::{
+    future::BoxFuture,
+    FutureExt,
+};
 use slog::Logger;
 use std::{
     collections::HashMap,
     sync::Arc,
 };
 use uuid::Uuid;
-use futures::FutureExt;
 
 #[derive(Clone)]
 pub struct TestStore;

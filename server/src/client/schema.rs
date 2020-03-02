@@ -6,29 +6,48 @@ use juniper::RootNode;
 
 pub type Schema<'a, C, S> = RootNode<'a, Query<C, S>, Mutation<C, S>>;
 
-
 #[cfg(test)]
 mod tests {
-    use juniper::DefaultScalarValue;
-    use juniper::http::{GraphQLRequest, GraphQLResponse};
-    use crate::client::Schema;
-    use shelf_database::test::{TestStore};
-    use crate::client::query::Query;
-    use crate::client::mutation::Mutation;
-    use crate::context::Context;
-    use shelf_database::{Database, Cache, Document};
-    use uuid::Uuid;
-    use shelf_database::CacheSchema;
-    use sloggers::Build;
-    use sloggers::null::NullLoggerBuilder;
-    use slog::Logger;
-    use std::sync::Arc;
+    use crate::{
+        client::{
+            mutation::Mutation,
+            query::Query,
+            Schema,
+        },
+        context::Context,
+    };
+    use juniper::{
+        http::{
+            GraphQLRequest,
+            GraphQLResponse,
+        },
+        DefaultScalarValue,
+    };
+    use serde_json::{
+        Map,
+        Value,
+    };
     use shelf_config::Config;
+    use shelf_database::{
+        test::TestStore,
+        Cache,
+        CacheCollection,
+        CacheSchema,
+        Database,
+        Document,
+        Schema as DbSchema,
+    };
     use shelf_memory_cache::MemoryCache;
-    use shelf_database::{Schema as DbSchema};
-    use std::collections::HashMap;
-    use shelf_database::CacheCollection;
-    use serde_json::{Map, Value};
+    use slog::Logger;
+    use sloggers::{
+        null::NullLoggerBuilder,
+        Build,
+    };
+    use std::{
+        collections::HashMap,
+        sync::Arc,
+    };
+    use uuid::Uuid;
 
     const TEST_GRAPHQL_SCHEMA: &str = r#"
         directive @collection on OBJECT
@@ -45,15 +64,13 @@ mod tests {
     #[tokio::test]
     async fn get_schema_id() {
         let (root_node, context) = node_and_context().await;
-        let request = GraphQLRequest::<DefaultScalarValue>::new(
-            "{schemaId}".to_string(),
-            None,
-            None
-        );
+        let request =
+            GraphQLRequest::<DefaultScalarValue>::new("{schemaId}".to_string(), None, None);
 
         let response = request.execute_async(&root_node, &context).await;
         let data = unwrap_data_tag(response);
-        let schema_id = serde_json::from_value::<Uuid>(data.get("schemaId").unwrap().clone()).unwrap();
+        let schema_id =
+            serde_json::from_value::<Uuid>(data.get("schemaId").unwrap().clone()).unwrap();
 
         assert_eq!(schema_id, Uuid::nil(), "Got wrong id")
     }
@@ -61,11 +78,8 @@ mod tests {
     #[tokio::test]
     async fn get_schema_name() {
         let (root_node, context) = node_and_context().await;
-        let request = GraphQLRequest::<DefaultScalarValue>::new(
-            "{schemaName}".to_string(),
-            None,
-            None
-        );
+        let request =
+            GraphQLRequest::<DefaultScalarValue>::new("{schemaName}".to_string(), None, None);
 
         let response = request.execute_async(&root_node, &context).await;
         let data = unwrap_data_tag(response);
@@ -81,12 +95,18 @@ mod tests {
         let request = GraphQLRequest::<DefaultScalarValue>::new(
             "{cars {totalCount}}".to_string(),
             None,
-            None
+            None,
         );
 
         let response = request.execute_async(&root_node, &context).await;
         let data = unwrap_data_tag(response);
-        let total_count = data.get("cars").unwrap().get("totalCount").unwrap().as_i64().unwrap();
+        let total_count = data
+            .get("cars")
+            .unwrap()
+            .get("totalCount")
+            .unwrap()
+            .as_i64()
+            .unwrap();
 
         assert_eq!(total_count, 1, "Got wrong count")
     }
@@ -100,7 +120,10 @@ mod tests {
         }
     }
 
-    async fn node_and_context<'a>() -> (Schema<'a, MemoryCache, TestStore>, Context<MemoryCache, TestStore>) {
+    async fn node_and_context<'a>() -> (
+        Schema<'a, MemoryCache, TestStore>,
+        Context<MemoryCache, TestStore>,
+    ) {
         let logger = NullLoggerBuilder.build().unwrap();
 
         let db = database(&logger).await;
@@ -110,20 +133,44 @@ mod tests {
         (node, context)
     }
 
-    async fn root_node<'a>(db: &Database<MemoryCache, TestStore>) -> Schema<'a, MemoryCache, TestStore> {
+    async fn root_node<'a>(
+        db: &Database<MemoryCache, TestStore>,
+    ) -> Schema<'a, MemoryCache, TestStore> {
         let schema = db.cache().schema(Uuid::nil()).await.unwrap();
-        Schema::new_with_info(Query::new(), Mutation::new(), schema.inner_schema().await, ())
+        Schema::new_with_info(
+            Query::new(),
+            Mutation::new(),
+            schema.inner_schema().await,
+            (),
+        )
     }
 
-    fn context(logger: &Logger, db: &Database<MemoryCache, TestStore>) -> Context<MemoryCache, TestStore> {
+    fn context(
+        logger: &Logger,
+        db: &Database<MemoryCache, TestStore>,
+    ) -> Context<MemoryCache, TestStore> {
         Context::new(&logger, Arc::new(Database::clone(&db)))
     }
 
     async fn database(logger: &Logger) -> Database<MemoryCache, TestStore> {
         let config = Config::default();
-        let db = Database::new(&logger, &config, TestStore, MemoryCache::new(&logger).await.unwrap()).await.unwrap();
+        let db = Database::new(
+            &logger,
+            &config,
+            TestStore,
+            MemoryCache::new(&logger).await.unwrap(),
+        )
+        .await
+        .unwrap();
 
-        db.cache().insert_schema(&logger, DbSchema::new(Uuid::nil(), "Test", None), TEST_GRAPHQL_SCHEMA).await.unwrap();
+        db.cache()
+            .insert_schema(
+                &logger,
+                DbSchema::new(Uuid::nil(), "Test", None),
+                TEST_GRAPHQL_SCHEMA,
+            )
+            .await
+            .unwrap();
 
         let mut fields = HashMap::new();
 
@@ -132,10 +179,18 @@ mod tests {
 
         let doc = Document {
             id: Uuid::nil(),
-            fields
+            fields,
         };
 
-        db.cache().schema(Uuid::nil()).await.unwrap().collection_by_name("Car").await.unwrap().set_document(doc).await;
+        db.cache()
+            .schema(Uuid::nil())
+            .await
+            .unwrap()
+            .collection_by_name("Car")
+            .await
+            .unwrap()
+            .set_document(doc)
+            .await;
 
         db
     }

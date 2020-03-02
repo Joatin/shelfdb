@@ -181,7 +181,7 @@ impl<C: Cache, S: Store> Clone for Database<C, S> {
         Self {
             cache: Arc::clone(&self.cache),
             store: Arc::clone(&self.store),
-            run_save: Arc::clone(&self.run_save)
+            run_save: Arc::clone(&self.run_save),
         }
     }
 }
