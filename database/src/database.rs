@@ -176,6 +176,16 @@ impl<C: Cache, S: Store> Database<C, S> {
     }
 }
 
+impl<C: Cache, S: Store> Clone for Database<C, S> {
+    fn clone(&self) -> Self {
+        Self {
+            cache: Arc::clone(&self.cache),
+            store: Arc::clone(&self.store),
+            run_save: Arc::clone(&self.run_save)
+        }
+    }
+}
+
 impl<C: Cache, S: Store> Drop for Database<C, S> {
     fn drop(&mut self) {
         self.run_save.store(false, Ordering::Relaxed);

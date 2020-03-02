@@ -12,12 +12,14 @@ use std::{
     sync::Arc,
 };
 use uuid::Uuid;
+use futures::FutureExt;
 
+#[derive(Clone)]
 pub struct TestStore;
 
 impl Store for TestStore {
     fn get_schemas(&self, _logger: &Logger) -> BoxFuture<Result<HashMap<Uuid, Schema>, Error>> {
-        unimplemented!()
+        futures::future::ok(HashMap::new()).boxed()
     }
 
     fn get_collections(
@@ -25,7 +27,7 @@ impl Store for TestStore {
         _logger: &Logger,
         _schema: &Schema,
     ) -> BoxFuture<Result<Vec<Collection>, Error>> {
-        unimplemented!()
+        futures::future::ok(Vec::new()).boxed()
     }
 
     fn get_documents(
@@ -34,11 +36,11 @@ impl Store for TestStore {
         _schema: &Schema,
         _collection: &Collection,
     ) -> BoxFuture<Result<Vec<Document>, Error>> {
-        unimplemented!()
+        futures::future::ok(Vec::new()).boxed()
     }
 
     fn save_schema(&self, _logger: &Logger, _schema: &Schema) -> BoxFuture<Result<(), Error>> {
-        unimplemented!()
+        futures::future::ok(()).boxed()
     }
 
     fn save_collection<'a>(
@@ -47,7 +49,7 @@ impl Store for TestStore {
         _schema: &'a Schema,
         _collection: &'a Collection,
     ) -> BoxFuture<Result<(), Error>> {
-        unimplemented!()
+        futures::future::ok(()).boxed()
     }
 
     fn save_document<'a>(
@@ -57,10 +59,10 @@ impl Store for TestStore {
         _collection: &'a Collection,
         _document: Arc<Document>,
     ) -> BoxFuture<Result<(), Error>> {
-        unimplemented!()
+        futures::future::ok(()).boxed()
     }
 
     fn flush<'a>(&'a self, _logger: &'a Logger) -> BoxFuture<Result<(), Error>> {
-        unimplemented!()
+        futures::future::ok(()).boxed()
     }
 }

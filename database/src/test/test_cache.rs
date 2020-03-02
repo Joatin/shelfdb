@@ -9,10 +9,7 @@ use crate::{
     Store,
 };
 use failure::Error;
-use futures::{
-    future::BoxFuture,
-    stream::BoxStream,
-};
+use futures::{future::BoxFuture, stream::BoxStream, FutureExt};
 use slog::Logger;
 use std::{
     future::Future,
@@ -39,7 +36,7 @@ impl Cache for TestCache {
         _logger: &'a Logger,
         _store: &'a S,
     ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
-        unimplemented!()
+        futures::future::ok(()).boxed()
     }
 
     fn save<'a, S: Store>(
