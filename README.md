@@ -24,8 +24,8 @@ paginated using cursor based pagination
 ## Installation
 
 #### Helm
-The simplest way to add Shelfdb to you cluster is by using our helm script. Assuming you have helm installed 
-([How to install](https://helm.sh/docs/intro/quickstart/)), you can simple run the following command and you will be all set
+The easiest way to add Shelfdb to you cluster is by using our helm script. Assuming you have helm installed 
+([How to install](https://helm.sh/docs/intro/quickstart/)), you can run the following command
 
 ```shell script
 helm install --repo https://shelfdb.netlify.com shelfdb
@@ -53,5 +53,8 @@ services:
  - [ ] GraphQL Subscriptions
  - [ ] Clustering
 
-## License
+## [Contributing](CONTRIBUTING.md)
+See our [Contribution Guidelines](CONTRIBUTING.md)
+
+## [License](LICENSE)
 See [LICENSE](LICENSE)

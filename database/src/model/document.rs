@@ -21,3 +21,9 @@ impl Document {
         size
     }
 }
+
+impl Into<Value> for Document {
+    fn into(self) -> Value {
+        serde_json::to_value(&self).expect("This is always serializable")
+    }
+}
