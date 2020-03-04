@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 /// This trait wraps a regular schema, but lets us retrieve collections with
 /// more convenience methods
-pub trait CacheSchema: 'static + Send + Sync {
+pub trait CacheSchema: 'static + Send + Sync + Clone {
     type CacheCollection: CacheCollection;
 
     fn inner_schema(&self) -> BoxFuture<Schema>;

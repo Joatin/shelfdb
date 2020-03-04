@@ -27,29 +27,60 @@ use shelf_database::{
     Store,
 };
 use std::future::Future;
+use crate::client::collection::Collection;
+use shelf_database::CacheCollection;
 
 pub struct Query<C: Cache, S: Store> {
     phantom_cache: PhantomData<C>,
     phantom_store: PhantomData<S>,
+    schema: C::CacheSchema
 }
 
 impl<C: Cache, S: Store> Query<C, S> {
-    pub fn new() -> Self {
+    pub fn new(schema: C::CacheSchema) -> Self {
         Self {
             phantom_cache: PhantomData,
             phantom_store: PhantomData,
+            schema
         }
     }
 
-    fn resolve_collection(
+    async fn resolve_collection<'a>(
         &self,
+        info: &DbSchema,
         _context: &Context<C, S>,
-        _args: &Arguments,
-        _executor: &Executor<Context<C, S>>,
+        arguments: &Arguments<'a>,
+        executor: &Executor<'a, Context<C, S>>,
+        coll_name: &str,
     ) -> ExecutionResult {
-        // self.schema.collections().find()
         // executor.resolve(collection, &Collection::new())
-        unimplemented!()
+        match arguments.get("id") {
+            Some(id) => {
+                match self.schema.collection_by_name(coll_name).await {
+                    Some(coll) => {
+                        match coll.document(id).await {
+                            Some(doc) => {
+                                executor.resolve_with_ctx(&(coll_name.to_string(), info.clone()), &Collection::new(doc))
+                            },
+                            None => {
+                                executor.resolve_with_ctx(&(), &Option::<String>::None)
+                            }
+                        }
+
+                    },
+                    None => Err(FieldError::new(
+                        "Missing collection",
+                        graphql_value!({ "missing_collection": "This should not happen, collection was missing, perhaps deleted?" })
+                    ))
+                }
+            },
+            None => {
+                Err(FieldError::new(
+                    "Id has to be provided",
+                    graphql_value!({ "missing_argument": "Argument was missing" })
+                ))
+            },
+        }
     }
 
     async fn resolve_collections(
@@ -155,8 +186,8 @@ impl<C: Cache, S: Store> GraphQLTypeAsync<DefaultScalarValue> for Query<C, S> {
                 QueryField::SchemaId => executor.resolve_with_ctx(&(), &info.id),
                 QueryField::SchemaName => executor.resolve_with_ctx(&(), &info.name),
                 QueryField::SchemaCreatedAt => executor.resolve_with_ctx(&(), &info.created_at),
-                QueryField::Document { .. } => {
-                    self.resolve_collection(context, arguments, executor)
+                QueryField::Document { collection_name } => {
+                    self.resolve_collection(&info, context, arguments, executor, &collection_name).await
                 }
                 QueryField::Documents { collection_name } => {
                     self.resolve_collections(info, context, arguments, executor, &collection_name)

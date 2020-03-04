@@ -27,7 +27,7 @@ pub async fn build_root_node_from_schemas<'a, C: Cache, S: Store>(
             let inner_schema = i.inner_schema().await;
             let name = inner_schema.name.to_string();
             let node = Arc::new(RootNode::new_with_info(
-                Query::new(),
+                Query::new(i.clone()),
                 Mutation::new(),
                 DbSchema::clone(&inner_schema),
                 (),
