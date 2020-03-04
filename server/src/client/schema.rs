@@ -16,10 +16,13 @@ mod tests {
         },
         context::Context,
     };
-    use juniper::{http::{
-        GraphQLRequest,
-        GraphQLResponse,
-    }, DefaultScalarValue};
+    use juniper::{
+        http::{
+            GraphQLRequest,
+            GraphQLResponse,
+        },
+        DefaultScalarValue,
+    };
     use serde_json::{
         Map,
         Value,
@@ -112,21 +115,19 @@ mod tests {
     async fn get_car_by_id() {
         let (root_node, context) = node_and_context().await;
         let request = GraphQLRequest::<DefaultScalarValue>::new(
-            format!("query {{car(id: \"{}\") {{id, model, brand}}}}", Uuid::nil()),
+            format!(
+                "query {{car(id: \"{}\") {{id, model, brand}}}}",
+                Uuid::nil()
+            ),
             None,
             None,
         );
 
         let response = request.execute_async(&root_node, &context).await;
         let data = unwrap_data_tag(response);
-        let id = serde_json::from_value::<Uuid>(
-            data
-            .get("car")
-            .unwrap()
-            .get("id")
-            .unwrap()
-                .clone()
-        ).unwrap();
+        let id =
+            serde_json::from_value::<Uuid>(data.get("car").unwrap().get("id").unwrap().clone())
+                .unwrap();
         let model = data
             .get("car")
             .unwrap()
@@ -152,7 +153,10 @@ mod tests {
             let result = serde_json::to_value(response).unwrap();
             result.get("data").unwrap().as_object().unwrap().clone()
         } else {
-            panic!(format!("Request was unsuccessful, error was: {}", serde_json::to_string(&response).unwrap()));
+            panic!(format!(
+                "Request was unsuccessful, error was: {}",
+                serde_json::to_string(&response).unwrap()
+            ));
         }
     }
 
@@ -174,12 +178,7 @@ mod tests {
     ) -> Schema<'a, MemoryCache, TestStore> {
         let schema = db.cache().schema(Uuid::nil()).await.unwrap();
         let inner_schema = schema.inner_schema().await;
-        Schema::new_with_info(
-            Query::new(schema),
-            Mutation::new(),
-            inner_schema,
-            (),
-        )
+        Schema::new_with_info(Query::new(schema), Mutation::new(), inner_schema, ())
     }
 
     fn context(

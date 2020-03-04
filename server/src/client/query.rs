@@ -1,5 +1,6 @@
 use crate::{
     client::{
+        collection::Collection,
         connection::Connection,
         node::Node,
         query_field::QueryField,
@@ -22,18 +23,17 @@ use juniper::{
 };
 use shelf_database::{
     Cache,
+    CacheCollection,
     CacheSchema,
     Schema as DbSchema,
     Store,
 };
 use std::future::Future;
-use crate::client::collection::Collection;
-use shelf_database::CacheCollection;
 
 pub struct Query<C: Cache, S: Store> {
     phantom_cache: PhantomData<C>,
     phantom_store: PhantomData<S>,
-    schema: C::CacheSchema
+    schema: C::CacheSchema,
 }
 
 impl<C: Cache, S: Store> Query<C, S> {
@@ -41,7 +41,7 @@ impl<C: Cache, S: Store> Query<C, S> {
         Self {
             phantom_cache: PhantomData,
             phantom_store: PhantomData,
-            schema
+            schema,
         }
     }
 
@@ -55,31 +55,23 @@ impl<C: Cache, S: Store> Query<C, S> {
     ) -> ExecutionResult {
         // executor.resolve(collection, &Collection::new())
         match arguments.get("id") {
-            Some(id) => {
-                match self.schema.collection_by_name(coll_name).await {
-                    Some(coll) => {
-                        match coll.document(id).await {
-                            Some(doc) => {
-                                executor.resolve_with_ctx(&(coll_name.to_string(), info.clone()), &Collection::new(doc))
-                            },
-                            None => {
-                                executor.resolve_with_ctx(&(), &Option::<String>::None)
-                            }
-                        }
-
-                    },
-                    None => Err(FieldError::new(
-                        "Missing collection",
-                        graphql_value!({ "missing_collection": "This should not happen, collection was missing, perhaps deleted?" })
-                    ))
-                }
+            Some(id) => match self.schema.collection_by_name(coll_name).await {
+                Some(coll) => match coll.document(id).await {
+                    Some(doc) => executor.resolve_with_ctx(
+                        &(coll_name.to_string(), info.clone()),
+                        &Collection::new(doc),
+                    ),
+                    None => executor.resolve_with_ctx(&(), &Option::<String>::None),
+                },
+                None => Err(FieldError::new(
+                    "Missing collection",
+                    graphql_value!({ "missing_collection": "This should not happen, collection was missing, perhaps deleted?" }),
+                )),
             },
-            None => {
-                Err(FieldError::new(
-                    "Id has to be provided",
-                    graphql_value!({ "missing_argument": "Argument was missing" })
-                ))
-            },
+            None => Err(FieldError::new(
+                "Id has to be provided",
+                graphql_value!({ "missing_argument": "Argument was missing" }),
+            )),
         }
     }
 
@@ -173,12 +165,7 @@ impl<C: Cache, S: Store> GraphQLTypeAsync<DefaultScalarValue> for Query<C, S> {
         executor: &'a Executor<Self::Context, DefaultScalarValue>,
     ) -> BoxFuture<'a, ExecutionResult<DefaultScalarValue>> {
         async move {
-            // Next, we need to match the queried field name. All arms of this
-            // match statement return `ExecutionResult`, which makes it hard to
-            // statically verify that the type you pass on to `executor.resolve*`
-            // actually matches the one that you defined in `meta()` above.
             let context = executor.context();
-
             let collections = Self::map_collection_to_name_and_fields(info);
 
             match QueryField::from_str(field_name, &collections)? {
@@ -187,7 +174,8 @@ impl<C: Cache, S: Store> GraphQLTypeAsync<DefaultScalarValue> for Query<C, S> {
                 QueryField::SchemaName => executor.resolve_with_ctx(&(), &info.name),
                 QueryField::SchemaCreatedAt => executor.resolve_with_ctx(&(), &info.created_at),
                 QueryField::Document { collection_name } => {
-                    self.resolve_collection(&info, context, arguments, executor, &collection_name).await
+                    self.resolve_collection(&info, context, arguments, executor, &collection_name)
+                        .await
                 }
                 QueryField::Documents { collection_name } => {
                     self.resolve_collections(info, context, arguments, executor, &collection_name)

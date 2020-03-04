@@ -1,4 +1,5 @@
 use crate::util::parse_graphql_response::parse_graphql_response;
+use chrono::Utc;
 use hyper::{
     body::to_bytes,
     header,
@@ -17,6 +18,7 @@ use juniper::{
 use std::{
     convert::Infallible,
     sync::Arc,
+    time::Instant,
 };
 
 pub async fn graphql_post<
@@ -32,12 +34,14 @@ where
     <Q as juniper::GraphQLType>::TypeInfo: Send + Sync,
     <M as juniper::GraphQLType>::TypeInfo: Send + Sync,
 {
+    let start_time = Utc::now();
+    let start_instant = Instant::now();
     match to_bytes(req.into_body()).await {
         Ok(body) => match serde_json::from_slice::<GraphQLRequest<DefaultScalarValue>>(&body) {
             Ok(request) => {
                 let resp = request.execute_async(&root_node, &context).await;
 
-                Ok(parse_graphql_response(resp))
+                Ok(parse_graphql_response(resp, start_time, start_instant))
             }
             Err(_e) => {
                 let mut resp = Response::new(Body::from(

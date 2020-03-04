@@ -152,9 +152,9 @@ impl Server {
         context: Context<C, S>,
         req: Request<Body>,
     ) -> Result<Response<Body>, Infallible> {
-        let client_root_nodes = client_root_nodes.read().await;
-
         let start_time = Instant::now();
+
+        let client_root_nodes = client_root_nodes.read().await;
 
         let logger = context.logger.clone();
         let method_and_uri = format!("{} {}", req.method(), req.uri().path()).yellow();
@@ -209,11 +209,7 @@ impl Server {
             logger,
             "Handled request {} in {}",
             method_and_uri,
-            format!(
-                "{:?}ms",
-                Instant::now().duration_since(start_time).as_secs_f64() * 1000.0
-            )
-            .yellow()
+            format!("{:?}ms", start_time.elapsed().as_secs_f64() * 1000.0).yellow()
         );
 
         res

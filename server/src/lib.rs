@@ -8,6 +8,8 @@ extern crate slog;
 extern crate juniper;
 #[macro_use]
 extern crate failure;
+#[macro_use]
+extern crate serde_json;
 
 mod admin;
 mod client;
