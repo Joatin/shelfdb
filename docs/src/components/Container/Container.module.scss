@@ -8,7 +8,8 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: env(safe-area-inset-top) calc(env(safe-area-inset-right) + .5em) env(safe-area-inset-bottom) calc(env(safe-area-inset-left) + .5em);
+
 
   @media (max-width: 1280px) {
     max-width: 960px;
@@ -23,7 +24,6 @@
   @media (max-width: 640px) {
     max-width: 100%;
     margin: 0;
-    padding: 0 .5em;
   }
 }
 

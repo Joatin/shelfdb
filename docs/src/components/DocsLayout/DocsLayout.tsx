@@ -13,8 +13,16 @@ import DocContainer from "../DocContainer/DocContainer";
 import {library} from "@fortawesome/fontawesome-svg-core";
 import {fab} from "@fortawesome/free-brands-svg-icons";
 import {fas} from "@fortawesome/free-solid-svg-icons";
+import Container from "../Container/Container";
 
 library.add(fab, fas);
+
+const menu = [
+  {
+    title: "Welcome",
+    to: "/docs/welcome"
+  }
+];
 
 export default class DocsLayout extends Component<any> {
 
@@ -25,16 +33,16 @@ export default class DocsLayout extends Component<any> {
         <SEO {...this.props} title={siteMetadata.title}/>
         <Header title={siteMetadata.title} />
         <div className={styles.contentContainer}>
-          <DocMenuSection />
           <div className={styles.mdContainer}>
-            <DocContainer>
+            <DocMenuSection menu={menu} />
+            <Container>
               <MDXProvider components={shortcodes}>
                 <MDXRenderer>{mdx.body}</MDXRenderer>
               </MDXProvider>
-            </DocContainer>
-            <div className={styles.spacer}/>
-            <Footer/>
+            </Container>
+            <div className={styles.docPadding}/>
           </div>
+          <Footer/>
         </div>
         <MobileMenu />
       </div>

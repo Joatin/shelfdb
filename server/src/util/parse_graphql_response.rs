@@ -63,12 +63,12 @@ fn parse_json(
                 "endTime": end_time,
                 "duration": duration,
                 "parsing": {
-                    "startOffset": "",
-                    "duration": ""
+                    "startOffset": 0,
+                    "duration": 0
                 },
                 "validation": {
-                    "startOffset": "",
-                    "duration": ""
+                    "startOffset": 0,
+                    "duration": 0
                 },
                 "execution": {
                     "resolvers": []

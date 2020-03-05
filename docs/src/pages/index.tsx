@@ -11,7 +11,7 @@ export default class IndexPage extends Component {
 
   render() {
     return (
-      <Layout title="Home">
+      <Layout title="Shelfdb">
         <Hero />
         <UndrawSection color={'white'} undraw={UndrawCollecting}>
           <h1>The power of GraphQL</h1>

@@ -12,11 +12,16 @@
 .contentContainer {
   flex: 1;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+  height: 100%;
 }
 
 .mdContainer {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+}
+
+.docPadding {
+  height: 20em;
 }

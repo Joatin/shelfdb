@@ -1,7 +1,7 @@
 
 module.exports = {
   siteMetadata: {
-    title: `Shelf`,
+    title: `Shelfdb`,
     description: `The GraphQL Database!`,
     author: `Joatin Granlund <granlundjoatin@icloud.com>`,
     repository: `https://github.com/Joatin/shelfdb`,
