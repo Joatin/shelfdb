@@ -1,0 +1,85 @@
+@import "../../partials/variables";
+
+.hero {
+  width: 100%;
+  background: $primary-color;
+  background: linear-gradient(to right, $accent-color, $primary-color);
+
+  display: block;
+  flex-direction: row;
+}
+
+.heroTile {
+  margin: 0;
+  font-size: 4em;
+  color: white;
+}
+
+.heroSubTile {
+  margin: .5em 0 0 1em;
+  font-size: 1.5em;
+  color: yellow;
+}
+
+.heroButton {
+  margin: .75em 0 0 1.5em;
+  padding: .5em 1.5em;
+  font-size: 1em;
+  color: yellow;
+  border: .1em solid yellow;
+  border-radius: .5em;
+  background-color: transparent;
+  text-transform: uppercase;
+  text-decoration: none;
+  display: inline-block;
+
+  & > span {
+    font-size: 1.2em;
+  }
+
+  &:hover, &:active {
+    background-color: transparentize(yellow, 0.9);
+  }
+}
+
+.titleSection {
+  font-family: 'Roboto';
+  flex: 1 1;
+  padding: 8em 0 8em;
+  color: white;
+
+  @media (max-width: 640px) {
+    padding: 4em 0 4em;
+  }
+}
+
+.demoSection {
+  flex: 1 1;
+  padding: 6em 0 6em;
+  display: flex;
+  flex-direction: column;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+}
+
+.demo {
+  background-color: #2c2a35;
+  padding: 2em;
+  border-radius: .5em;
+  flex: 1;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+  min-height: 16em;
+}
+
+.demoText {
+  font-size: 1.2em;
+  font-family: 'Source Code Pro';
+}
+
+.container {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+}

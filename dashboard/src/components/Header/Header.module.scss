@@ -1,0 +1,100 @@
+@import "../../partials/variables";
+
+$header-height: 4em;
+
+.headerPlaceHolder {
+  min-height: $header-height;
+  height: $header-height;
+}
+
+.header {
+  font-family: 'Roboto';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  min-height: $header-height;
+  height: $header-height;
+  background-color: $primary-color;
+  border-bottom: solid $primary-color-dark .1em;
+  display: flex;
+  flex-direction: row;
+}
+
+.itemMain {
+  height: 4em;
+  line-height: 4em;
+  text-decoration: none;
+  padding: 0 2em;
+  box-sizing: content-box;
+
+  &:hover, &:active {
+    background-color: darken($primary-color, 10%);
+  }
+
+  & > span {
+    font-size: 2em;
+    color: white;
+  }
+}
+
+.item {
+  height: 4em;
+  line-height: 4em;
+  text-decoration: none;
+  padding: 0 2em;
+  box-sizing: content-box;
+
+  &:hover, &:active {
+    background-color: darken($primary-color, 10%);
+  }
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+
+  & > span {
+    font-size: 1.3em;
+    color: white;
+    font-weight: 300;
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+@keyframes wobble {
+  0% { transform: rotate(0deg); }
+  1% { transform: rotate(-10deg); }
+  2% { transform: rotate(10deg); }
+  3% { transform: rotate(-10deg); }
+  4% { transform: rotate(10deg); }
+  5% { transform: rotate(-10deg); }
+  6% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.github {
+  height: 4em;
+  line-height: 4em;
+  text-decoration: none;
+  padding: 0 1em;
+  box-sizing: content-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  & > * {
+    animation-duration: 7s;
+    animation-fill-mode: both;
+    animation-name: wobble;
+    animation-iteration-count: infinite;
+    animation-delay: 1s;
+  }
+
+  &:hover, &:active {
+    background-color: darken($primary-color, 10%);
+  }
+}

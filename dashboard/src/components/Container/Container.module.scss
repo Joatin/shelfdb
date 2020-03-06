@@ -1,0 +1,29 @@
+
+
+.container {
+  max-width: 1280px;
+  width: 1280px;
+  margin: 0 auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) calc(env(safe-area-inset-right) + .5em) env(safe-area-inset-bottom) calc(env(safe-area-inset-left) + .5em);
+
+
+  @media (max-width: 1280px) {
+    max-width: 960px;
+    width: 960px;
+  }
+
+  @media (max-width: 960px) {
+    max-width: 640px;
+    width: 640px;
+  }
+
+  @media (max-width: 640px) {
+    max-width: 100%;
+    margin: 0;
+  }
+}
+

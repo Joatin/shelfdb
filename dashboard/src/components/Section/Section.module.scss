@@ -1,0 +1,20 @@
+
+
+.section {
+  padding: 8em 0;
+  font-family: 'Roboto';
+  text-align: center;
+  display: block;
+
+  @media (max-width: 640px) {
+    padding: 4em 0;
+  }
+
+  & h1 {
+
+  }
+
+  & p {
+
+  }
+}
