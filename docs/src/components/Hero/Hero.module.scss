@@ -11,22 +11,22 @@
 
 .heroTile {
   margin: 0;
-  font-size: 4em;
-  color: white;
+  font-size: 8em;
+  color: #66FCF1;
 }
 
 .heroSubTile {
   margin: .5em 0 0 1em;
   font-size: 1.5em;
-  color: yellow;
+  color: #C5C6C7;
 }
 
 .heroButton {
   margin: .75em 0 0 1.5em;
   padding: .5em 1.5em;
   font-size: 1em;
-  color: yellow;
-  border: .1em solid yellow;
+  color: #66FCF1;
+  border: .1em solid #66FCF1;
   border-radius: .5em;
   background-color: transparent;
   text-transform: uppercase;
@@ -38,7 +38,7 @@
   }
 
   &:hover, &:active {
-    background-color: transparentize(yellow, 0.9);
+    background-color: transparentize(black, 0.9);
   }
 }
 
