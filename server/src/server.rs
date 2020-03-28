@@ -18,17 +18,10 @@ use crate::{
 use colored::*;
 use failure::Error;
 use futures::channel::oneshot::channel;
-use hyper::{
-    service::{
-        make_service_fn,
-        service_fn,
-    },
-    Body,
-    Method,
-    Request,
-    Response,
-    Server as HyperServer,
-};
+use hyper::{service::{
+    make_service_fn,
+    service_fn,
+}, Body, Method, Request, Response, Server as HyperServer, header};
 use shelf_config::Config;
 use shelf_database::{
     Cache,
@@ -43,6 +36,7 @@ use std::{
     time::Instant,
 };
 use tokio::sync::RwLock;
+use hyper::header::HeaderValue;
 
 pub struct Server {
     handle: Box<dyn FnOnce()>,
@@ -163,14 +157,17 @@ impl Server {
 
         if req.uri().path().starts_with(&"/admin") {
             return match (req.method(), req.uri().path()) {
-                (&Method::GET, "/") => playground("/graphql"),
-                (&Method::GET, "/graphql") => {
+                (&Method::GET, "/admin") => playground("/graphql"),
+                (&Method::GET, "/admin/graphql") => {
                     graphql_get(Arc::clone(&admin_root_node), context).await
+                },
+                (&Method::OPTIONS, "/admin/graphql") => {
+                    Ok(options_response())
                 }
-                (&Method::POST, "/graphql") => {
+                (&Method::POST, "/admin/graphql") => {
                     graphql_post(Arc::clone(&admin_root_node), context, req).await
                 }
-                _ => Ok(Response::new("Hello, World".into())),
+                _ => Ok(hello_world_response()),
             };
         }
 
@@ -188,7 +185,7 @@ impl Server {
                     (&Method::POST, "/graphql") => {
                         graphql_post(Arc::clone(&node), context, req).await
                     }
-                    _ => Ok(Response::new("Hello, World".into())),
+                    _ => Ok(hello_world_response()),
                 }
             }
             None => match client_root_nodes.get("shelf") {
@@ -199,9 +196,9 @@ impl Server {
                     (&Method::POST, "/graphql") => {
                         graphql_post(Arc::clone(&node), context, req).await
                     }
-                    _ => Ok(Response::new("Hello, World".into())),
+                    _ => Ok(hello_world_response()),
                 },
-                None => Ok(Response::new("Hello, World".into())),
+                None => Ok(hello_world_response()),
             },
         };
 
@@ -218,4 +215,33 @@ impl Server {
     pub fn stop(self) {
         (self.handle)();
     }
+}
+
+fn hello_world_response() -> Response<Body> {
+    let mut resp = Response::new("Hello, World".into());
+    resp.headers_mut().insert(
+        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        HeaderValue::from_static("*"),
+    );
+    resp.headers_mut().insert(
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("GET,POST,OPTIONS"),
+    );
+
+    resp
+}
+
+fn options_response() -> Response<Body> {
+    let mut resp = Response::default();
+    resp.headers_mut().insert(
+        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        HeaderValue::from_static("*"),
+    );
+    resp.headers_mut().insert(
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("GET,POST,OPTIONS"),
+    );
+    resp.headers_mut().remove(header::CONTENT_TYPE);
+
+    resp
 }

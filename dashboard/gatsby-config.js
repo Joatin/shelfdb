@@ -7,13 +7,18 @@ module.exports = {
     repository: `https://github.com/Joatin/shelfdb`,
     menuLinks:[
       {
-        name:'Docs',
-        link:'/docs',
+        name:'Schemas',
+        link:'/schemas',
         icon: 'book'
       },
       {
-        name:'Blog',
-        link:'/blog',
+        name:'Stats',
+        link:'/stats',
+        icon: 'rss'
+      },
+      {
+        name:'Settings',
+        link:'/settings',
         icon: 'rss'
       }
     ]

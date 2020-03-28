@@ -28,6 +28,14 @@ pub fn parse_graphql_response(
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json"),
         );
+        resp.headers_mut().insert(
+            header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            HeaderValue::from_static("*"),
+        );
+        resp.headers_mut().insert(
+            header::ACCESS_CONTROL_ALLOW_METHODS,
+            HeaderValue::from_static("GET,POST,OPTIONS"),
+        );
         resp
     } else {
         let json = parse_json(response, start_time, start_instant);
@@ -36,6 +44,14 @@ pub fn parse_graphql_response(
         resp.headers_mut().insert(
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/json"),
+        );
+        resp.headers_mut().insert(
+            header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            HeaderValue::from_static("*"),
+        );
+        resp.headers_mut().insert(
+            header::ACCESS_CONTROL_ALLOW_METHODS,
+            HeaderValue::from_static("GET,POST,OPTIONS"),
         );
         resp
     }
