@@ -18,10 +18,19 @@ use crate::{
 use colored::*;
 use failure::Error;
 use futures::channel::oneshot::channel;
-use hyper::{service::{
-    make_service_fn,
-    service_fn,
-}, Body, Method, Request, Response, Server as HyperServer, header};
+use hyper::{
+    header,
+    header::HeaderValue,
+    service::{
+        make_service_fn,
+        service_fn,
+    },
+    Body,
+    Method,
+    Request,
+    Response,
+    Server as HyperServer,
+};
 use shelf_config::Config;
 use shelf_database::{
     Cache,
@@ -36,7 +45,6 @@ use std::{
     time::Instant,
 };
 use tokio::sync::RwLock;
-use hyper::header::HeaderValue;
 
 pub struct Server {
     handle: Box<dyn FnOnce()>,
@@ -160,10 +168,8 @@ impl Server {
                 (&Method::GET, "/admin") => playground("/graphql"),
                 (&Method::GET, "/admin/graphql") => {
                     graphql_get(Arc::clone(&admin_root_node), context).await
-                },
-                (&Method::OPTIONS, "/admin/graphql") => {
-                    Ok(options_response())
                 }
+                (&Method::OPTIONS, "/admin/graphql") => Ok(options_response()),
                 (&Method::POST, "/admin/graphql") => {
                     graphql_post(Arc::clone(&admin_root_node), context, req).await
                 }
