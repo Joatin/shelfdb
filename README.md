@@ -33,7 +33,7 @@ helm install --repo https://shelfdb.netlify.com shelfdb
 
 #### Docker Compose
 
-You can also run Shelfdb locally using the following docker compose file. Really nice for some local experimentation
+You can also run Shelfdb locally using the docker compose file below. Really nice for some local experimentation
 
 ```yaml
 version: '3'
