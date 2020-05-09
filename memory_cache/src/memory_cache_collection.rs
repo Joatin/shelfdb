@@ -46,7 +46,7 @@ impl MemoryCacheCollection {
             .documents()
             .await
             .stream()
-            .fold(size, |acc, val| async move { (acc + val.get_size()) })
+            .fold(size, |acc, val| async move { acc + val.get_size() })
             .await;
 
         size += self.collection.read().await.get_size();

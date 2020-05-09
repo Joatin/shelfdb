@@ -1,3 +1,4 @@
+use super::QueryField;
 use crate::client::{
     collection::Collection,
     connection::Connection,
@@ -7,7 +8,6 @@ use chrono::{
     DateTime,
     Utc,
 };
-use failure::Error;
 use inflector::cases::{
     camelcase::to_camel_case,
     classcase::to_class_case,
@@ -29,148 +29,7 @@ use shelf_database::{
 };
 use uuid::Uuid;
 
-pub enum QueryField {
-    Node,
-    SchemaId,
-    SchemaName,
-    SchemaCreatedAt,
-    Document {
-        collection_name: String,
-    },
-    Documents {
-        collection_name: String,
-    },
-    FirstDocumentByField {
-        collection_name: String,
-        field_name: String,
-    },
-    FindDocumentsByField {
-        collection_name: String,
-        field_name: String,
-    },
-    FirstDocumentByFieldAndField {
-        collection_name: String,
-        field_name: String,
-        second_field_name: String,
-    },
-    FindDocumentsByFieldAndField {
-        collection_name: String,
-        field_name: String,
-        second_field_name: String,
-    },
-}
-
 impl QueryField {
-    pub fn from_str(
-        field_name: &str,
-        collections: &[(String, Vec<String>)],
-    ) -> Result<QueryField, Error> {
-        match field_name {
-            "node" => Ok(QueryField::Node),
-            "schemaId" => Ok(QueryField::SchemaId),
-            "schemaName" => Ok(QueryField::SchemaName),
-            "schemaCreatedAt" => Ok(QueryField::SchemaCreatedAt),
-            _ => {
-                if let Some((name, _)) = collections
-                    .iter()
-                    .find(|(name, _fields)| field_name == to_camel_case(name))
-                {
-                    Ok(QueryField::Document {
-                        collection_name: name.to_string(),
-                    })
-                } else if let Some((name, _)) = collections
-                    .iter()
-                    .find(|(name, _fields)| field_name == format!("{}s", to_camel_case(name)))
-                {
-                    Ok(QueryField::Documents {
-                        collection_name: name.to_string(),
-                    })
-                } else {
-                    bail!("Unknown field")
-                }
-            }
-        }
-    }
-
-    pub fn fields<'r, C: Cache, S: Store>(
-        info: &DbSchema,
-        registry: &mut Registry<'r, DefaultScalarValue>,
-        collections: &[(String, Vec<String>)],
-    ) -> Vec<Field<'r, DefaultScalarValue>> {
-        let mut fields = vec![
-            QueryField::Node.into_field::<C, S>(info, registry),
-            QueryField::SchemaId.into_field::<C, S>(info, registry),
-            QueryField::SchemaName.into_field::<C, S>(info, registry),
-            QueryField::SchemaCreatedAt.into_field::<C, S>(info, registry),
-        ];
-
-        for (collection_name, collection_fields) in collections {
-            fields.push(
-                QueryField::Document {
-                    collection_name: collection_name.to_string(),
-                }
-                .into_field::<C, S>(info, registry),
-            );
-            fields.push(
-                QueryField::Documents {
-                    collection_name: collection_name.to_string(),
-                }
-                .into_field::<C, S>(info, registry),
-            );
-
-            for field in collection_fields
-                .iter()
-                .filter(|i| !i.eq(&&"id".to_string()))
-            {
-                fields.push(
-                    QueryField::FirstDocumentByField {
-                        collection_name: collection_name.to_string(),
-                        field_name: field.to_string(),
-                    }
-                    .into_field::<C, S>(info, registry),
-                );
-                fields.push(
-                    QueryField::FindDocumentsByField {
-                        collection_name: collection_name.to_string(),
-                        field_name: field.to_string(),
-                    }
-                    .into_field::<C, S>(info, registry),
-                );
-
-                for second_field in collection_fields
-                    .iter()
-                    .filter(|i| !i.eq(&&"id".to_string()) && !i.eq(&&field.to_string()))
-                {
-                    fields.push(
-                        QueryField::FirstDocumentByFieldAndField {
-                            collection_name: collection_name.to_string(),
-                            field_name: field.to_string(),
-                            second_field_name: second_field.to_string(),
-                        }
-                        .into_field::<C, S>(info, registry),
-                    );
-                    fields.push(
-                        QueryField::FindDocumentsByFieldAndField {
-                            collection_name: collection_name.to_string(),
-                            field_name: field.to_string(),
-                            second_field_name: second_field.to_string(),
-                        }
-                        .into_field::<C, S>(info, registry),
-                    );
-                }
-            }
-        }
-
-        fields
-    }
-
-    // fields.push(registry.field::<&i32>(&format!("{}Count",
-    // to_camel_case(&coll.name)), &())); fields.push(registry.field::<&
-    // Connection<C, S>>(&format!("{}s", to_camel_case(&coll.name)),
-    // &(&format!("{}Connection", coll.name), &coll.name, info)));
-    // fields.push(registry.field::<&Collection<C, S>>(&to_camel_case(&coll.name),
-    // &(&coll.name, info)));
-
     pub fn into_field<'r, C: Cache, S: Store>(
         self,
         info: &DbSchema,
@@ -377,67 +236,5 @@ impl QueryField {
                 }
             },
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::client::query_field::QueryField;
-    use fnv::{
-        FnvBuildHasher,
-        FnvHashMap,
-    };
-    use juniper::{
-        DefaultScalarValue,
-        Registry,
-    };
-    use shelf_database::{
-        test::{
-            TestCache,
-            TestStore,
-        },
-        Schema as DbSchema,
-    };
-    use uuid::Uuid;
-
-    fn registry<'r>() -> Registry<'r, DefaultScalarValue> {
-        Registry::new(FnvHashMap::with_hasher(FnvBuildHasher::default()))
-    }
-
-    fn schema() -> DbSchema {
-        DbSchema::new(Uuid::nil(), "TEST", None)
-    }
-
-    #[test]
-    fn fields_should_contain_schema_id() {
-        let mut registry = registry();
-        let fields = QueryField::fields::<TestCache, TestStore>(&schema(), &mut registry, &[]);
-
-        assert!(
-            fields.iter().any(|i| i.name == "schemaId"),
-            "The fields did not contain schemaId"
-        );
-    }
-
-    #[test]
-    fn fields_should_contain_schema_name() {
-        let mut registry = registry();
-        let fields = QueryField::fields::<TestCache, TestStore>(&schema(), &mut registry, &[]);
-
-        assert!(
-            fields.iter().any(|i| i.name == "schemaName"),
-            "The fields did not contain schemaName"
-        );
-    }
-
-    #[test]
-    fn fields_should_contain_schema_created_at() {
-        let mut registry = registry();
-        let fields = QueryField::fields::<TestCache, TestStore>(&schema(), &mut registry, &[]);
-
-        assert!(
-            fields.iter().any(|i| i.name == "schemaCreatedAt"),
-            "The fields did not contain schemaCreatedAt"
-        );
     }
 }
